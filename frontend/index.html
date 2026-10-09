@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="tg">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<title>Lingolion 🦁</title>
+<meta name="description" content="Lingolion — AI-powered multilingual language learning platform" />
+<meta name="theme-color" content="#174337" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="icons/lion.svg" />
+<link rel="apple-touch-icon" href="icons/lion-192.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand">Lingolion <span class="brand-emoji">🦁</span></div>
+    <div class="header-actions">
+      <button id="notificationBtn" class="icon-btn notification-btn" aria-label="Notifications" title="Notifications">
+        🔔
+        <span id="notificationBadge" class="notification-badge hidden">0</span>
+      </button>
+      <button id="installAppBtn" class="icon-btn install-app-btn hidden" aria-label="Насб кардани барнома" title="Насб кардани барнома">↓</button>
+      <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Main view container -->
+  <main id="mainView" class="main-view"></main>
+
+  <!-- Bottom navigation -->
+  <nav id="bottomNav" class="bottom-nav hidden">
+    <button class="nav-item" data-view="lesson-generator">
+      <span class="nav-icon">✨</span><span class="nav-label" data-i18n="nav.lesson_generator"></span>
+    </button>
+    <button class="nav-item" data-view="course">
+      <span class="nav-icon">🎓</span><span class="nav-label" data-i18n="nav.course"></span>
+    </button>
+    <button class="nav-item" data-view="speaking">
+      <span class="nav-icon">🗣️</span><span class="nav-label" data-i18n="nav.speaking"></span>
+    </button>
+    <button class="nav-item" data-view="communication">
+      <span class="nav-icon">💬</span><span class="nav-label" data-i18n="nav.communication"></span>
+      <span id="communicationBadge" class="notification-badge hidden">0</span>
+    </button>
+    <button class="nav-item" data-view="rating">
+      <span class="nav-icon">⭐</span><span class="nav-label" data-i18n="nav.rating"></span>
+    </button>
+    <button class="nav-item" data-view="games">
+      <span class="nav-icon">🎮</span><span class="nav-label" data-i18n="nav.games"></span>
+    </button>
+    <button class="nav-item" data-view="profile">
+      <span class="nav-icon">👤</span><span class="nav-label" data-i18n="nav.profile"></span>
+    </button>
+    <button class="nav-item hidden" id="adminNavButton" data-view="admin">
+      <span class="nav-icon">🛡</span><span class="nav-label" data-i18n="nav.admin"></span>
+    </button>
+  </nav>
+
+  <!-- Settings modal -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-content settings-modal-content" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-header">
+        <button id="settingsBackBtn" class="icon-btn settings-back-btn hidden" type="button" aria-label="Back" data-i18n-aria-label="settings.back">←</button>
+        <h3 id="settingsTitle" data-i18n="profile.settings"></h3>
+        <button class="icon-btn close-modal" aria-label="Close" data-i18n-aria-label="common.close">✕</button>
+      </div>
+      <div class="modal-body settings-modal-body">
+        <div id="settingsMenu" class="settings-menu">
+          <button id="openLanguageSettings" class="btn btn-outline settings-menu-btn" type="button" data-i18n="settings.change_language"></button>
+          <button id="openProfileSettings" class="btn btn-outline settings-menu-btn" type="button" data-i18n="settings.edit_profile"></button>
+          <button id="openCourseSettings" class="btn btn-outline settings-menu-btn" type="button" data-i18n="settings.change_course"></button>
+          <button id="openDeviceSessions" class="btn btn-outline settings-menu-btn" type="button" data-i18n="settings.device_sessions"></button>
+        </div>
+        <section id="settingsProfilePanel" class="settings-section hidden">
+          <h4 data-i18n="settings.profile"></h4>
+          <form id="settingsProfileForm" class="settings-grid">
+            <label><span data-i18n="profile.first_name"></span><input name="first_name" type="text" maxlength="100" required /></label>
+            <label><span data-i18n="profile.last_name"></span><input name="last_name" type="text" maxlength="100" required /></label>
+            <label><span data-i18n="profile.age"></span><input name="age" type="number" min="3" max="120" /></label>
+            <label><span data-i18n="profile.region"></span><input name="region" type="text" maxlength="100" /></label>
+            <button class="btn btn-primary settings-save-profile" type="submit" data-i18n="common.save"></button>
+          </form>
+        </section>
+        <section id="settingsLanguagePanel" class="settings-section hidden">
+          <h4 data-i18n="settings.change_language"></h4>
+          <label><span data-i18n="profile.interface_language"></span>
+              <select id="langSwitcher" name="interface_language">
+              </select>
+          </label>
+        </section>
+        <section id="settingsCoursePanel" class="settings-section hidden">
+          <h4 data-i18n="settings.courses"></h4>
+          <label><span data-i18n="settings.active_course"></span><select id="activeCourseSelect"></select></label>
+          <div id="settingsCourseList" class="settings-course-list"></div>
+          <details class="settings-add-course">
+            <summary data-i18n="settings.add_course"></summary>
+            <form id="newCourseForm" class="settings-grid">
+              <label><span data-i18n="onboarding.source_language"></span><input name="source_language" type="text" maxlength="50" required /></label>
+              <label><span data-i18n="onboarding.target_language"></span><input name="target_language" type="text" maxlength="50" required /></label>
+              <label><span data-i18n="onboarding.goal"></span><input name="learning_goal" type="text" maxlength="255" required /></label>
+              <label><span data-i18n="onboarding.level"></span>
+                <select name="current_level"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option></select>
+              </label>
+              <label><span data-i18n="onboarding.daily_time"></span><input name="daily_time_minutes" type="number" min="5" max="480" value="15" required /></label>
+              <button class="btn btn-secondary settings-save-profile" type="submit" data-i18n="settings.create_course"></button>
+            </form>
+          </details>
+        </section>
+        <section id="settingsDeviceSessionsPanel" class="settings-section hidden">
+          <h4 data-i18n="settings.device_sessions"></h4>
+          <p class="lesson-meta" data-i18n="settings.device_sessions_hint"></p>
+          <div id="deviceSessionsList" class="device-sessions-list"></div>
+        </section>
+        <section id="settingsActions" class="settings-actions">
+          <button id="shareAppBtn" class="btn btn-outline" data-i18n="settings.share"></button>
+          <button id="logoutBtn" class="btn btn-outline" data-i18n="auth.logout"></button>
+          <button id="deleteAccountBtn" class="btn btn-danger" data-i18n="settings.delete_account"></button>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script src="js/views/auth.js"></script>
+<script src="js/views/onboarding.js"></script>
+<script src="js/views/lesson-generator.js"></script>
+<script src="js/speech.js"></script>
+<script src="js/views/course.js"></script>
+<script src="js/views/speaking-practice.js"></script>
+<script src="js/topic_catalog.js"></script>
+<script src="js/vocabulary_catalog.js"></script>
+<script src="js/game_catalog.js"></script>
+<script src="js/games/vocabulary-learning.js"></script>
+<script src="js/views/communication.js"></script>
+<script src="js/views/rating.js"></script>
+<script src="js/views/games.js"></script>
+<script src="js/views/profile.js"></script>
+<script src="js/views/admin.js"></script>
+<script src="js/app.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

@@ -1,8 +1,4 @@
-const API_HOST = window.location.hostname || "127.0.0.1";
-const API_PROTOCOL = window.location.protocol === "https:" ? "https:" : "http:";
-const API_ORIGIN = window.location.protocol === "file:" || window.location.port === "5500"
-  ? `${API_PROTOCOL}//${API_HOST}:8000`
-  : window.location.origin;
+const API_ORIGIN = "https://lingolion.onrender.com";
 const API_BASE = `${API_ORIGIN}/api`;
 const WS_BASE = `${API_ORIGIN.replace(/^http/, "ws")}/api`;
 

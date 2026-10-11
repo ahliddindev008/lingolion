@@ -150,6 +150,15 @@ class LessonCompleteRequest(BaseModel):
 
 
 # ---------- Chat ----------
+class ChatReplyPreview(BaseModel):
+    id: int
+    sender_name: Optional[str] = None
+    is_ai: bool = False
+    snippet: str = ""
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ChatMessageOut(BaseModel):
     id: int
     room: str
@@ -158,6 +167,9 @@ class ChatMessageOut(BaseModel):
     content: str
     corrected_text: Optional[str]
     correction_notes: Optional[str]
+    reply_to_id: Optional[int] = None
+    reply_to: Optional[ChatReplyPreview] = None
+    sender_name: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -171,6 +183,51 @@ class ChatSendRequest(BaseModel):
         default="free_talk",
         pattern="^(free_talk|introductions|cafe|travel|work)$",
     )
+    reply_to_id: Optional[int] = None
+
+
+# ---------- Chat spaces (groups & channels) ----------
+class ChatSpaceCreate(BaseModel):
+    kind: str = Field(pattern="^(group|channel)$")
+    name: str = Field(min_length=1, max_length=120)
+    description: Optional[str] = Field(default=None, max_length=500)
+    member_ids: list[int] = []
+
+
+class ChatSpaceJoinRequest(BaseModel):
+    code: str = Field(min_length=4, max_length=16)
+
+
+class ChatSpaceAddMembers(BaseModel):
+    user_ids: list[int] = Field(min_length=1, max_length=100)
+
+
+class ChatSpaceMemberOut(BaseModel):
+    user_id: int
+    first_name: str
+    last_name: str
+    role: str
+    joined_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChatSpaceOut(BaseModel):
+    id: int
+    kind: str
+    name: str
+    description: Optional[str] = None
+    room: str
+    invite_code: str
+    creator_id: int
+    my_role: str
+    can_post: bool
+    member_count: int
+    members: list[ChatSpaceMemberOut]
+    last_message: Optional[ChatMessageOut] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ---------- Games ----------

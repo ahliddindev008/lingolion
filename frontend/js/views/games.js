@@ -7,6 +7,8 @@ const GamesView = (() => {
   let speechTimeout = null;
   let speechCancelled = false;
   let activeGameTopicId = null;
+  // Remembers how to return to the topic picker from inside a running game.
+  let gameTopicPickerState = null;
 
   const translatorLanguages = [
     { code: "tg", label: "Тоҷикӣ" },
@@ -161,6 +163,14 @@ const GamesView = (() => {
     });
   }
 
+  // Shared "back" affordance for the game/topic windows. Keeping the markup in
+  // one place guarantees the same look and translated label everywhere.
+  function backButtonHtml(id, labelKey) {
+    return `<button class="btn btn-outline topic-back" id="${id}" type="button">
+      <span aria-hidden="true">←</span><span data-i18n="${labelKey}"></span>
+    </button>`;
+  }
+
   function openActivity(title, returnFocusTo) {
     const overlay = document.getElementById("activityOverlay");
     if (!overlay) return null;
@@ -181,6 +191,7 @@ const GamesView = (() => {
     }
     overlay.classList.add("hidden");
     document.getElementById("gameArea").innerHTML = "";
+    gameTopicPickerState = null;
     activityReturnFocus?.focus();
     activityReturnFocus = null;
   }
@@ -297,12 +308,14 @@ const GamesView = (() => {
     }
 
     gameArea.innerHTML = `
+      ${backButtonHtml("closeTopicsBtn", "games.back")}
       <div class="topic-search">
         <label for="topicSearch" data-i18n="games.search_topics"></label>
         <input id="topicSearch" type="search" data-i18n-placeholder="games.search_topics_placeholder" autocomplete="off" />
       </div>
       <div class="topic-list" id="topicList"></div>`;
     I18N.applyToDom(gameArea);
+    document.getElementById("closeTopicsBtn").addEventListener("click", closeActivity);
 
     const topicList = document.getElementById("topicList");
     const search = document.getElementById("topicSearch");
@@ -339,9 +352,10 @@ const GamesView = (() => {
     const pair = pairs.find((item) => item.id === activePairId);
     const languages = getPracticeLanguages(pair);
     gameArea.innerHTML = `
-      <button class="btn btn-outline topic-back" id="backToTopics" type="button">
-        <span aria-hidden="true">←</span><span data-i18n="games.all_topics"></span>
-      </button>
+      <div class="activity-back-row">
+        ${backButtonHtml("backToTopics", "games.all_topics")}
+        ${backButtonHtml("closeTopicsBtn", "games.back")}
+      </div>
       <div class="topic-detail-heading">
         <span class="topic-language-tag">${escapeHtml(pair.target_language)}</span>
         <h3>${escapeHtml(localizedCatalogTitle(topic.title, languages.target))}</h3>
@@ -356,6 +370,7 @@ const GamesView = (() => {
     I18N.applyToDom(gameArea);
 
     document.getElementById("backToTopics").addEventListener("click", () => renderTopicList(gameArea, showToast));
+    document.getElementById("closeTopicsBtn").addEventListener("click", closeActivity);
   }
 
   function openDialogues(showToast, returnFocusTo) {
@@ -625,8 +640,17 @@ const GamesView = (() => {
       showToast(error.message, "error");
       return;
     }
+    renderGameTopicPicker(gameArea, gameType, showToast, pairId, unlockedTopics);
+  }
 
+  // Topic picker for a game. Extracted so the in-game "back" button can return
+  // here without re-fetching the unlock progress from the API.
+  function renderGameTopicPicker(gameArea, gameType, showToast, pairId, unlockedTopics) {
+    const pair = pairs.find((item) => item.id === pairId);
+    const languages = getPracticeLanguages(pair);
+    gameTopicPickerState = { gameArea, gameType, showToast, pairId, unlockedTopics };
     gameArea.innerHTML = `
+      ${backButtonHtml("gameTopicsBackBtn", "games.back_to_games")}
       <p class="topic-search-hint" data-i18n="games.choose_game_topic"></p>
       <div class="topic-list game-topic-list">
         ${OfflineGameCatalog.topics.map((topic) => {
@@ -642,6 +666,7 @@ const GamesView = (() => {
         }).join("")}
       </div>`;
     I18N.applyToDom(gameArea);
+    document.getElementById("gameTopicsBackBtn").addEventListener("click", closeActivity);
     gameArea.querySelectorAll("[data-game-topic]").forEach((button) => {
       button.addEventListener("click", () => {
         activeGameTopicId = button.dataset.gameTopic;
@@ -670,6 +695,7 @@ const GamesView = (() => {
         showToast,
         speakGameText,
         submitScore: (type, score, gamePairId) => submitScore(type, score, showToast, gamePairId),
+        onBack: reopenGameTopicPicker,
       });
     }
     else if (gameType === "vocab_match") renderVocabMatch(gameArea, content, showToast, pairId);
@@ -710,9 +736,10 @@ const GamesView = (() => {
     const translations = pairsData.map((p, i) => ({ id: i, text: p.translation, type: "translation" }));
     const shuffled = shuffle([...words, ...translations]);
 
-    gameArea.innerHTML = `<div class="card"><div class="match-grid">
+    gameArea.innerHTML = `${gameBackRowHtml()}<div class="card"><div class="match-grid">
       ${shuffled.map((item, idx) => `<div class="match-cell" data-id="${item.id}" data-type="${item.type}" data-idx="${idx}">${escapeHtml(item.text)}</div>`).join("")}
     </div></div>`;
+    bindGameBack(gameArea);
 
     let selected = null;
     let matchedCount = 0;
@@ -759,12 +786,14 @@ const GamesView = (() => {
       }
       const item = items[idx];
       gameArea.innerHTML = `
+        ${gameBackRowHtml()}
         <div class="card">
           <p>${escapeHtml(item.sentence)}</p>
           <input type="text" id="translationAnswer" />
           <button class="btn btn-primary" id="submitAnswer" style="margin-top:10px;" data-i18n="communication.send"></button>
         </div>`;
       I18N.applyToDom(gameArea);
+      bindGameBack(gameArea);
       document.getElementById("submitAnswer").addEventListener("click", () => {
         const answer = document.getElementById("translationAnswer").value.trim().toLowerCase();
         if (answer && answer === String(item.answer).trim().toLowerCase()) correct++;
@@ -790,15 +819,19 @@ const GamesView = (() => {
       }
 
       const item = items[index];
-      const distractors = items.filter((candidate) => candidate !== item).map((candidate) => candidate.translation);
-      const options = shuffle([item.translation, ...distractors.slice(0, 3)]);
+      // Productive direction: the prompt is in the learner's own language and
+      // the options are in the language being learned.
+      const distractors = shuffle(items.filter((candidate) => candidate !== item).map((candidate) => candidate.word));
+      const options = shuffle([item.word, ...distractors.slice(0, 3)]);
       gameArea.innerHTML = `
+        ${gameBackRowHtml()}
         <div class="card game-round">
           <p class="lesson-meta">${index + 1}/${items.length}</p>
-          <h3>${escapeHtml(item.word)}</h3>
-          ${options.map((option) => `<button type="button" class="option-btn" data-correct="${option === item.translation}">${escapeHtml(option)}</button>`).join("")}
+          <h3>${escapeHtml(item.translation)}</h3>
+          ${options.map((option) => `<button type="button" class="option-btn" data-correct="${option === item.word}">${escapeHtml(option)}</button>`).join("")}
           <p class="game-feedback" id="gameFeedback" aria-live="polite"></p>
         </div>`;
+      bindGameBack(gameArea);
 
       gameArea.querySelectorAll(".option-btn").forEach((button) => {
         button.addEventListener("click", () => {
@@ -812,7 +845,7 @@ const GamesView = (() => {
             else if (option === button) option.classList.add("incorrect");
           });
           const feedback = document.getElementById("gameFeedback");
-          feedback.textContent = isCorrect ? "✓" : item.translation;
+          feedback.textContent = isCorrect ? "✓" : item.word;
           feedback.classList.add(isCorrect ? "correct" : "incorrect");
           window.setTimeout(() => {
             index++;
@@ -850,6 +883,7 @@ const GamesView = (() => {
         scrambled = [...scrambled.slice(1), scrambled[0]];
       }
       gameArea.innerHTML = `
+        ${gameBackRowHtml()}
         <div class="card game-round">
           <p class="lesson-meta">${index + 1}/${items.length}</p>
           <p class="scramble-word" aria-label="Scrambled letters">${escapeHtml(scrambled.join(" "))}</p>
@@ -862,6 +896,7 @@ const GamesView = (() => {
           </form>
         </div>`;
       I18N.applyToDom(gameArea);
+      bindGameBack(gameArea);
 
       document.getElementById("scrambleForm").addEventListener("submit", (event) => {
         event.preventDefault();
@@ -903,10 +938,12 @@ const GamesView = (() => {
       }
       const item = items[idx];
       gameArea.innerHTML = `
+        ${gameBackRowHtml()}
         <div class="card">
           <p><strong>${idx + 1}/${items.length}</strong> ${escapeHtml(item.question)}</p>
           ${(item.options || []).map((opt) => `<button type="button" class="option-btn">${escapeHtml(opt)}</button>`).join("")}
         </div>`;
+      bindGameBack(gameArea);
       gameArea.querySelectorAll(".option-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
           if (btn.textContent.trim() === String(item.correct_answer).trim()) correct++;
@@ -934,10 +971,51 @@ const GamesView = (() => {
     return true;
   }
 
+  // Result screen. Offers both "back to topics" and "close", and never lets a
+  // stale submit repeat if the user navigates back and forth.
   function finishNewGame(gameArea, gameType, score, showToast, pairId) {
-    gameArea.innerHTML = `<div class="card game-result"><p data-i18n="games.score"></p><h2>${score}%</h2></div>`;
+    gameArea.innerHTML = `
+      <div class="activity-back-row">
+        ${backButtonHtml("resultBackBtn", "games.back_to_games")}
+        ${backButtonHtml("resultCloseBtn", "games.back")}
+      </div>
+      <div class="card game-result">
+        <p data-i18n="games.score"></p>
+        <h2>${score}%</h2>
+      </div>`;
     I18N.applyToDom(gameArea);
+    document.getElementById("resultBackBtn").addEventListener("click", reopenGameTopicPicker);
+    document.getElementById("resultCloseBtn").addEventListener("click", closeActivity);
     submitScore(gameType, score, showToast, pairId);
+  }
+
+  // Returns to the topic picker of the game currently in progress.
+  function reopenGameTopicPicker() {
+    const state = gameTopicPickerState;
+    if (!state) {
+      closeActivity();
+      return;
+    }
+    activeGameTopicId = null;
+    renderGameTopicPicker(
+      state.gameArea,
+      state.gameType,
+      state.showToast,
+      state.pairId,
+      state.unlockedTopics,
+    );
+  }
+
+  // Back row shown above every game round, so the learner can leave a running
+  // game at any point (not only after the final question).
+  function gameBackRowHtml() {
+    return `<div class="activity-back-row">${backButtonHtml("gameBackBtn", "games.back_to_games")}</div>`;
+  }
+
+  // Binds the round-level back button. Safe to call on every re-render because
+  // each round replaces gameArea.innerHTML (dropping the previous listener).
+  function bindGameBack(gameArea) {
+    document.getElementById("gameBackBtn")?.addEventListener("click", reopenGameTopicPicker);
   }
 
   function renderListening(gameArea, content, showToast, pairId) {
@@ -952,6 +1030,7 @@ const GamesView = (() => {
       }
       const item = items[index];
       gameArea.innerHTML = `
+        ${gameBackRowHtml()}
         <div class="card game-round listening-round">
           <p class="lesson-meta">${index + 1}/${items.length}</p>
           <button id="playListeningAudio" class="btn btn-outline listening-play" type="button">🔊 <span data-i18n="games.play_audio"></span></button>
@@ -961,6 +1040,7 @@ const GamesView = (() => {
           <p class="game-feedback" id="listeningFeedback" aria-live="polite"></p>
         </div>`;
       I18N.applyToDom(gameArea);
+      bindGameBack(gameArea);
       document.getElementById("playListeningAudio").addEventListener("click", () => {
         if (!speakGameText(item.sentence)) showToast(I18N.t("games.audio_unavailable"), "error");
       });
@@ -1007,6 +1087,7 @@ const GamesView = (() => {
       }
       const item = items[index];
       gameArea.innerHTML = `
+        ${gameBackRowHtml()}
         <div class="card game-round open-answer-round">
           <p class="lesson-meta">${index + 1}/${items.length}</p>
           <p class="open-answer-prompt">${escapeHtml(item.prompt)}</p>
@@ -1020,6 +1101,7 @@ const GamesView = (() => {
           <p class="game-feedback" id="openAnswerFeedback" aria-live="polite"></p>
         </div>`;
       I18N.applyToDom(gameArea);
+      bindGameBack(gameArea);
       if (isSpeaking) {
         document.getElementById("recordGameAnswer").addEventListener("click", () => {
           const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1080,6 +1162,7 @@ const GamesView = (() => {
       }
       const item = items[index];
       gameArea.innerHTML = `
+        ${gameBackRowHtml()}
         <div class="card game-round reading-round">
           <p class="lesson-meta">${index + 1}/${items.length}</p>
           <p class="reading-passage">${escapeHtml(item.passage)}</p>
@@ -1087,6 +1170,7 @@ const GamesView = (() => {
           ${(item.options || []).map((option) => `<button type="button" class="option-btn" data-correct="${option === item.correct_answer}">${escapeHtml(option)}</button>`).join("")}
           <p class="game-feedback" id="readingFeedback" aria-live="polite"></p>
         </div>`;
+      bindGameBack(gameArea);
       gameArea.querySelectorAll(".option-btn").forEach((button) => {
         button.addEventListener("click", () => {
           if (button.disabled) return;

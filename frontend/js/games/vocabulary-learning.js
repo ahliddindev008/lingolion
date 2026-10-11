@@ -14,6 +14,18 @@ const VocabularyLearningGame = (() => {
       sourceLanguageCode,
       targetLanguageCode,
     } = options;
+
+    // "Back to topics" row, rebuilt on every screen so the learner can leave a
+    // running session at any point.
+    const backRowHtml = () =>
+      `<div class="activity-back-row"><button class="btn btn-outline topic-back" id="vocabularyBackBtn" type="button"><span aria-hidden="true">←</span><span data-i18n="games.back_to_games"></span></button></div>`;
+
+    function bindBack() {
+      document.getElementById("vocabularyBackBtn")?.addEventListener("click", () => {
+        options.onBack?.();
+      });
+    }
+
     const items = content.pairs || [];
     let firstPassIndex = 0;
     let reviewIndex = 0;
@@ -25,6 +37,7 @@ const VocabularyLearningGame = (() => {
     function showSummary() {
       const score = Math.round((knownWords.size / items.length) * 100);
       gameArea.innerHTML = `
+        ${backRowHtml()}
         <div class="card vocabulary-learning-summary">
           <div class="vocabulary-learning-summary-icon" aria-hidden="true">${score === 100 ? "🏆" : "📚"}</div>
           <p class="lesson-meta" data-i18n="games.learning_complete"></p>
@@ -34,6 +47,7 @@ const VocabularyLearningGame = (() => {
           <button class="btn btn-primary" id="restartVocabularyLearning" type="button" data-i18n="games.review_words"></button>
         </div>`;
       I18N.applyToDom(gameArea);
+      bindBack();
       document.getElementById("vocabularyWordsLearned").textContent =
         I18N.t("games.words_learned", { count: knownWords.size, total: items.length });
       document.getElementById("vocabularyWordsToReview").textContent =
@@ -73,6 +87,7 @@ const VocabularyLearningGame = (() => {
         ? 50 + Math.round(((reviewIndex + 1) / reviewQueue.length) * 50)
         : Math.round(((firstPassIndex + 1) / items.length) * 50);
       gameArea.innerHTML = `
+        ${backRowHtml()}
         <div class="vocabulary-learning-progress" role="progressbar" aria-label="${escapeHtml(I18N.t("games.learning_progress"))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
           <span style="width:${progress}%"></span>
         </div>
@@ -92,6 +107,7 @@ const VocabularyLearningGame = (() => {
           </div>
         </div>`;
       I18N.applyToDom(gameArea);
+      bindBack();
       document.getElementById("playVocabularyWord").addEventListener("click", () => {
         if (!speakGameText(item.word)) showToast(I18N.t("games.audio_unavailable"), "error");
       });

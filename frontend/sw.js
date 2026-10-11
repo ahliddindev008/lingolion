@@ -1,4 +1,4 @@
-const CACHE_NAME = "lingolion-shell-v35";
+const CACHE_NAME = "lingolion-shell-v37";
 const APP_SHELL = [
   "./",
   "./index.html",

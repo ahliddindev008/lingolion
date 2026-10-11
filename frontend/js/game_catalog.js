@@ -479,6 +479,28 @@ const OfflineGameCatalog = (() => {
     ja: "この文はどういう意味ですか？",
   };
 
+  function shuffle(items) {
+    const copy = [...items];
+    for (let index = copy.length - 1; index > 0; index--) {
+      const otherIndex = Math.floor(Math.random() * (index + 1));
+      [copy[index], copy[otherIndex]] = [copy[otherIndex], copy[index]];
+    }
+    return copy;
+  }
+
+  const CHOICE_OPTION_COUNT = 4;
+
+  // Builds a small, shuffled multiple-choice set: the correct answer plus a
+  // few random distractors (default 4 options total) instead of listing every
+  // phrase as an option.
+  function buildChoiceOptions(correctAnswer, allOptions, optionCount = CHOICE_OPTION_COUNT) {
+    const distractors = shuffle(allOptions.filter((option) => option !== correctAnswer)).slice(
+      0,
+      Math.max(optionCount - 1, 1),
+    );
+    return shuffle([correctAnswer, ...distractors]);
+  }
+
   function get(gameType, sourceLanguage, targetLanguage, topicId) {
     if (!languages.includes(sourceLanguage) || !languages.includes(targetLanguage)) return null;
     const topic = topics.find((item) => item.id === topicId);
@@ -487,10 +509,21 @@ const OfflineGameCatalog = (() => {
       sentence: phrase[sourceLanguage],
       answer: phrase[targetLanguage],
     }));
+    const sourcePhrases = topic.phrases.map((option) => option[sourceLanguage]);
+    const targetPhrases = topic.phrases.map((option) => option[targetLanguage]);
+    // Default direction: the prompt is in the language being learned and the
+    // options are in the learner's own language (receptive recognition).
     const choiceItems = topic.phrases.map((phrase) => ({
       sentence: phrase[targetLanguage],
-      options: topic.phrases.map((option) => option[sourceLanguage]),
+      options: buildChoiceOptions(phrase[sourceLanguage], sourcePhrases),
       correct_answer: phrase[sourceLanguage],
+    }));
+    // Reverse direction: the prompt is in the learner's own language and the
+    // options are in the language being learned (productive recall).
+    const reverseChoiceItems = topic.phrases.map((phrase) => ({
+      sentence: phrase[sourceLanguage],
+      options: buildChoiceOptions(phrase[targetLanguage], targetPhrases),
+      correct_answer: phrase[targetLanguage],
     }));
 
     switch (gameType) {
@@ -509,7 +542,7 @@ const OfflineGameCatalog = (() => {
         return { items: translations };
       case "speed_challenge":
         return {
-          items: choiceItems.map((item) => ({
+          items: reverseChoiceItems.map((item) => ({
             question: item.sentence,
             options: item.options,
             correct_answer: item.correct_answer,
@@ -527,11 +560,14 @@ const OfflineGameCatalog = (() => {
           })),
         };
       case "reading":
+        // The passage is in the language being learned, so the options stay in
+        // the learner's own language (the answer must be a meaning, not a copy
+        // of a phrase that is already visible in the passage).
         return {
           items: topic.phrases.map((phrase) => ({
             passage: phrase[targetLanguage],
             question: readingQuestion[sourceLanguage],
-            options: topic.phrases.map((option) => option[sourceLanguage]),
+            options: buildChoiceOptions(phrase[sourceLanguage], sourcePhrases),
             correct_answer: phrase[sourceLanguage],
           })),
         };

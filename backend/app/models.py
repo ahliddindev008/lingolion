@@ -149,7 +149,9 @@ class ChatMessage(Base):
     content = Column(Text, nullable=False)
     corrected_text = Column(Text, nullable=True)
     correction_notes = Column(Text, nullable=True)
+    reply_to_id = Column(Integer, ForeignKey("chat_messages.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, default=utcnow_naive)
+    reply_to = relationship("ChatMessage", remote_side=[id], uselist=False)
 
 
 class ChatRoomState(Base):
@@ -161,6 +163,41 @@ class ChatRoomState(Base):
     cleared_at = Column(DateTime, nullable=False, default=utcnow_naive)
 
     __table_args__ = (UniqueConstraint("user_id", "room", name="uq_user_chat_room_state"),)
+
+
+class ChatSpace(Base):
+    """A WhatsApp-style group chat or a one-way broadcast channel.
+
+    The ``room`` column links the space to the existing chat infrastructure
+    (``chat_messages``, WebSockets and clear-history states all key on it).
+    """
+
+    __tablename__ = "chat_spaces"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kind = Column(String(20), nullable=False)  # "group" or "channel"
+    name = Column(String(120), nullable=False)
+    description = Column(String(500), nullable=True)
+    room = Column(String(100), unique=True, index=True, nullable=False)  # "space_{id}"
+    invite_code = Column(String(16), unique=True, index=True, nullable=False)
+    creator_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=utcnow_naive)
+
+    members = relationship("ChatSpaceMember", back_populates="space", cascade="all, delete-orphan")
+
+
+class ChatSpaceMember(Base):
+    __tablename__ = "chat_space_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    space_id = Column(Integer, ForeignKey("chat_spaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String(20), nullable=False, default="member")  # owner | admin | member
+    joined_at = Column(DateTime, default=utcnow_naive)
+
+    space = relationship("ChatSpace", back_populates="members")
+
+    __table_args__ = (UniqueConstraint("space_id", "user_id", name="uq_chat_space_member"),)
 
 
 class Achievement(Base):

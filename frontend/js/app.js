@@ -19,6 +19,14 @@ const App = (() => {
 
   function setNavVisible(visible) {
     bottomNav.classList.toggle("hidden", !visible);
+    if (!visible) {
+      const btn = document.getElementById("backToTopBtn");
+      if (btn) {
+        btn.classList.remove("visible");
+        btn.setAttribute("aria-hidden", "true");
+        btn.tabIndex = -1;
+      }
+    }
   }
 
   function escapeHtml(value) {
@@ -142,6 +150,8 @@ const App = (() => {
     }
     I18N.applyToDom(mainView);
     window.scrollTo(0, 0);
+    mainView.scrollTop = 0;
+    updateBackToTopVisibility();
   }
 
   async function showAuth(mode = "login") {
@@ -225,7 +235,82 @@ const App = (() => {
     document.getElementById("settingsBackBtn").classList.add("hidden");
   }
 
+  function updateBackToTopVisibility() {
+    const btn = document.getElementById("backToTopBtn");
+    if (!btn) return;
+    const navHidden = bottomNav.classList.contains("hidden");
+    const shouldShow = !navHidden && mainView.scrollTop > 220;
+    btn.classList.toggle("visible", shouldShow);
+    btn.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+    btn.tabIndex = shouldShow ? 0 : -1;
+  }
+
+  // Global "back to top" affordance available on every scrollable view.
+  // Works with a floating button (all devices) plus an edge-swipe gesture
+  // (touch devices): swiping inward from the left or right screen edge jumps
+  // to the top of the current view.
+  function setupBackToTop() {
+    const btn = document.getElementById("backToTopBtn");
+    if (!btn) return;
+
+    const scrollToTop = () => {
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      mainView.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+      btn.blur();
+    };
+
+    btn.addEventListener("click", scrollToTop);
+    mainView.addEventListener("scroll", updateBackToTopVisibility, { passive: true });
+    window.addEventListener("resize", updateBackToTopVisibility);
+
+    const EDGE = 48;      // px from the screen edge that starts the gesture
+    const DISTANCE = 70;  // minimum inward travel to trigger
+    let startX = 0;
+    let startY = 0;
+    let fromEdge = false;
+
+    const isEdgeStart = (x) => x <= EDGE || x >= window.innerWidth - EDGE;
+
+    document.addEventListener(
+      "touchstart",
+      (event) => {
+        if (event.touches.length !== 1) {
+          fromEdge = false;
+          return;
+        }
+        const touch = event.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        fromEdge = isEdgeStart(startX);
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      "touchmove",
+      (event) => {
+        if (!fromEdge || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        const dx = touch.clientX - startX;
+        const dy = Math.abs(touch.clientY - startY);
+        const inward = startX <= EDGE ? dx : -dx;
+        if (inward >= DISTANCE && dy < Math.abs(dx)) {
+          fromEdge = false;
+          if (mainView.scrollTop > 220) {
+            if (navigator.vibrate) navigator.vibrate(10);
+            scrollToTop();
+          }
+        }
+      },
+      { passive: true }
+    );
+
+    updateBackToTopVisibility();
+  }
+
   function initShell() {
+    setupBackToTop();
+
     document.querySelectorAll(".nav-item").forEach((btn) => {
       btn.addEventListener("click", () => navigate(btn.dataset.view));
     });

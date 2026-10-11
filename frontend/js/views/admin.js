@@ -2,6 +2,7 @@ const AdminView = (() => {
   let search = "";
   let status = "all";
   let language = "all";
+let ratingsLanguage = "all";
   let sort = "joined";
   let page = 1;
   let pageSize = 20;
@@ -43,8 +44,16 @@ const AdminView = (() => {
         API.get("/admin/overview"),
         API.get(`/admin/users?${params}`),
       ]);
+      // The language-ratings endpoint is optional: if the deployed backend is
+      // older than this build the panel must still load (degrades to a notice).
+      let ratings = null;
+      try {
+        ratings = await API.get("/admin/ratings");
+      } catch (error) {
+        ratings = null;
+      }
       if (activeRequestId !== requestId) return;
-      renderDashboard(container, overview, result, showToast);
+      renderDashboard(container, overview, result, ratings, showToast);
     } catch (error) {
       if (activeRequestId !== requestId) return;
       container.innerHTML = `
@@ -60,7 +69,84 @@ const AdminView = (() => {
     }
   }
 
-  function renderDashboard(container, overview, result, showToast) {
+  // Language-pair leaderboards for the admin panel: one card per learning
+  // language combination with its own ranked learners.
+  function renderLanguageRatings(ratings) {
+    if (!Array.isArray(ratings)) {
+      // Older backend without the endpoint: keep the section but explain.
+      return `
+      <section class="admin-ratings-section admin-panel">
+        <div class="admin-section-heading">
+          <div>
+            <p class="admin-section-kicker" data-i18n="admin.directory"></p>
+            <h2 data-i18n="admin.all_ratings"></h2>
+          </div>
+        </div>
+        <p class="admin-ratings-empty" data-i18n="communication.backend_outdated"></p>
+      </section>`;
+    }
+    const languages = [...new Set(ratings.flatMap((group) => [group.source_language, group.target_language]))].sort(
+      (a, b) => a.localeCompare(b)
+    );
+    const visible = ratings.filter(
+      (group) =>
+        ratingsLanguage === "all" ||
+        group.source_language === ratingsLanguage ||
+        group.target_language === ratingsLanguage
+    );
+    return `
+      <section class="admin-ratings-section admin-panel">
+        <div class="admin-section-heading">
+          <div>
+            <p class="admin-section-kicker" data-i18n="admin.directory"></p>
+            <h2 data-i18n="admin.all_ratings"></h2>
+          </div>
+          <label class="admin-ratings-filter"><span data-i18n="admin.filter_language"></span>
+            <select id="adminRatingsLanguage">
+              <option value="all" ${ratingsLanguage === "all" ? "selected" : ""} data-i18n="admin.all_languages"></option>
+              ${languages
+                .map(
+                  (name) =>
+                    `<option value="${escapeHtml(name)}" ${ratingsLanguage === name ? "selected" : ""}>${escapeHtml(name)}</option>`
+                )
+                .join("")}
+            </select>
+          </label>
+        </div>
+        ${
+          visible.length
+            ? `<div class="admin-ratings-grid">
+          ${visible
+            .map(
+              (group) => `
+          <article class="admin-rating-card">
+            <header class="admin-rating-card-head">
+              <h3>${escapeHtml(group.source_language)} → ${escapeHtml(group.target_language)}</h3>
+              <span>${formatNumber(group.learner_count)} <span data-i18n="admin.learners"></span></span>
+            </header>
+            <ol class="admin-rating-list">
+              ${group.entries
+                .map(
+                  (entry, index) => `
+              <li>
+                <span class="admin-rating-rank">${index + 1}</span>
+                <span class="admin-rating-name">${escapeHtml(`${entry.first_name} ${entry.last_name}`.trim() || "—")}</span>
+                <span class="admin-rating-streak">🔥 ${formatNumber(entry.streak_days)}</span>
+                <strong>${formatNumber(entry.xp)} XP</strong>
+              </li>`
+                )
+                .join("")}
+            </ol>
+          </article>`
+            )
+            .join("")}
+        </div>`
+            : `<p class="admin-ratings-empty" data-i18n="admin.no_ratings"></p>`
+        }
+      </section>`;
+  }
+
+  function renderDashboard(container, overview, result, ratings, showToast) {
     const pageCount = result.page_count || Math.max(1, Math.ceil(result.total / pageSize));
     page = Math.min(Math.max(result.page || page, 1), pageCount);
     const availableLanguages = overview.available_languages || [];
@@ -125,10 +211,23 @@ const AdminView = (() => {
             <button class="icon-btn" id="adminNextPage" type="button" aria-label="${escapeHtml(I18N.t("admin.next"))}" title="${escapeHtml(I18N.t("admin.next"))}" ${page >= pageCount ? "disabled" : ""}>→</button>
           </footer>
         </section>
+        ${renderLanguageRatings(ratings)}
       </section>`;
     I18N.applyToDom(container);
 
     document.getElementById("adminRefreshButton").addEventListener("click", () => render(container, { showToast }));
+
+    function bindRatingsLanguageFilter() {
+      document.getElementById("adminRatingsLanguage")?.addEventListener("change", (event) => {
+        ratingsLanguage = event.target.value;
+        const section = container.querySelector(".admin-ratings-section");
+        if (!section) return;
+        section.outerHTML = renderLanguageRatings(ratings);
+        I18N.applyToDom(container);
+        bindRatingsLanguageFilter();
+      });
+    }
+    bindRatingsLanguageFilter();
     document.getElementById("adminClearSearch")?.addEventListener("click", () => {
       search = "";
       page = 1;

@@ -432,3 +432,190 @@ def test_lan_frontend_origin_is_allowed_in_development(client):
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://192.168.1.42:5500"
+
+
+def test_create_group_and_list_spaces(client, registered_user):
+    response = client.post(
+        "/api/communication/spaces",
+        headers=registered_user["headers"],
+        json={"kind": "group", "name": "English club", "description": "Practice together"},
+    )
+
+    assert response.status_code == 200
+    space = response.json()
+    assert space["kind"] == "group"
+    assert space["room"] == f"space_{space['id']}"
+    assert space["my_role"] == "owner"
+    assert space["can_post"] is True
+    assert space["member_count"] == 1
+    assert space["members"][0]["role"] == "owner"
+    assert len(space["invite_code"]) >= 8
+
+    listed = client.get("/api/communication/spaces", headers=registered_user["headers"])
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()] == [space["id"]]
+
+
+def test_join_group_by_invite_code_and_post(client, registered_user, create_user):
+    space = client.post(
+        "/api/communication/spaces",
+        headers=registered_user["headers"],
+        json={"kind": "group", "name": "Study group"},
+    ).json()
+
+    second = create_user("groupmate@example.com", "groupmate-device-01")
+    second_headers = {
+        "Authorization": f"Bearer {second.json()['access_token']}",
+        "X-Device-Id": "groupmate-device-01",
+    }
+    onboarding = client.post(
+        "/api/onboarding/complete",
+        headers=second_headers,
+        json={
+            "first_name": "Group",
+            "last_name": "Mate",
+            "age": 21,
+            "region": "Dushanbe",
+            "source_language": "English",
+            "target_language": "Tajik",
+            "current_level": "A1",
+            "learning_goal": "travel",
+            "daily_time_minutes": 15,
+            "interface_language": "tj",
+        },
+    )
+    assert onboarding.status_code == 200, onboarding.text
+    join = client.post(
+        "/api/communication/spaces/join",
+        headers=second_headers,
+        json={"code": space["invite_code"]},
+    )
+
+    assert join.status_code == 200
+    assert join.json()["member_count"] == 2
+    assert join.json()["my_role"] == "member"
+
+    owner_ids = [item["id"] for item in client.get("/api/communication/spaces", headers=registered_user["headers"]).json()]
+    member_ids = [item["id"] for item in client.get("/api/communication/spaces", headers=second_headers).json()]
+    assert space["id"] in owner_ids
+    assert space["id"] in member_ids
+
+    # Group members may post and the others get a room notification.
+    send = client.post(
+        "/api/communication/send",
+        headers=second_headers,
+        json={"room": space["room"], "content": "Salam everyone"},
+    )
+    assert send.status_code == 200
+
+    notifications = client.get("/api/profile/notifications", headers=registered_user["headers"]).json()
+    message_notice = next(item for item in notifications if item["kind"] == "message")
+    assert message_notice["title"] == "Study group"
+    assert "Salam everyone" in message_notice["message"]
+
+    history = client.get(
+        f"/api/communication/rooms/{space['room']}/messages",
+        headers=registered_user["headers"],
+    ).json()
+    assert history[-1]["content"] == "Salam everyone"
+    assert history[-1]["sender_name"] == "Group Mate"
+
+
+def test_channel_is_read_only_for_regular_members(client, registered_user, create_user):
+    channel = client.post(
+        "/api/communication/spaces",
+        headers=registered_user["headers"],
+        json={"kind": "channel", "name": "Lingolion news"},
+    ).json()
+    assert channel["can_post"] is True
+
+    reader = create_user("reader@example.com", "reader-device-0001")
+    reader_headers = {
+        "Authorization": f"Bearer {reader.json()['access_token']}",
+        "X-Device-Id": "reader-device-0001",
+    }
+    join = client.post(
+        "/api/communication/spaces/join",
+        headers=reader_headers,
+        json={"code": channel["invite_code"]},
+    )
+    assert join.status_code == 200
+    assert join.json()["can_post"] is False
+
+    # Subscribers can read the channel...
+    history = client.get(
+        f"/api/communication/rooms/{channel['room']}/messages",
+        headers=reader_headers,
+    )
+    assert history.status_code == 200
+
+    # ...but only the owner/admin may broadcast.
+    forbidden = client.post(
+        "/api/communication/send",
+        headers=reader_headers,
+        json={"room": channel["room"], "content": "My reply"},
+    )
+    assert forbidden.status_code == 403
+
+    owner_post = client.post(
+        "/api/communication/send",
+        headers=registered_user["headers"],
+        json={"room": channel["room"], "content": "New lesson is live"},
+    )
+    assert owner_post.status_code == 200
+
+    notifications = client.get("/api/profile/notifications", headers=reader_headers).json()
+    message_notice = next(item for item in notifications if item["kind"] == "message")
+    assert message_notice["title"] == "Lingolion news"
+
+    # Non-members cannot read a private space at all.
+    outsider = create_user("outsider@example.com", "outsider-device-001")
+    outsider_headers = {
+        "Authorization": f"Bearer {outsider.json()['access_token']}",
+        "X-Device-Id": "outsider-device-001",
+    }
+    denied = client.get(
+        f"/api/communication/rooms/{channel['room']}/messages",
+        headers=outsider_headers,
+    )
+    assert denied.status_code == 403
+
+
+def test_leave_space_transfers_ownership_and_can_dissolve(client, registered_user, create_user):
+    space = client.post(
+        "/api/communication/spaces",
+        headers=registered_user["headers"],
+        json={"kind": "group", "name": "Temp group"},
+    ).json()
+
+    second = create_user("second-member@example.com", "second-member-dev-01")
+    second_headers = {
+        "Authorization": f"Bearer {second.json()['access_token']}",
+        "X-Device-Id": "second-member-dev-01",
+    }
+    client.post(
+        "/api/communication/spaces/join",
+        headers=second_headers,
+        json={"code": space["invite_code"]},
+    )
+
+    # Owner leaving transfers ownership to the remaining member.
+    leave = client.post(
+        f"/api/communication/spaces/{space['id']}/leave",
+        headers=registered_user["headers"],
+    )
+    assert leave.status_code == 200
+    assert leave.json()["status"] == "left"
+
+    remaining = client.get("/api/communication/spaces", headers=second_headers).json()
+    assert remaining[0]["id"] == space["id"]
+    assert remaining[0]["my_role"] == "owner"
+
+    # The new last member leaving dissolves the space entirely.
+    dissolve = client.post(
+        f"/api/communication/spaces/{space['id']}/leave",
+        headers=second_headers,
+    )
+    assert dissolve.status_code == 200
+    assert dissolve.json()["status"] == "deleted"
+    assert client.get("/api/communication/spaces", headers=second_headers).json() == []

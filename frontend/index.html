@@ -18,12 +18,15 @@
   <header class="app-header">
     <div class="brand">Lingolion <span class="brand-emoji">🦁</span></div>
     <div class="header-actions">
-      <button id="notificationBtn" class="icon-btn notification-btn" aria-label="Notifications" title="Notifications">
+      <button id="notificationBtn" class="icon-btn notification-btn" aria-label="Notifications" title="Notifications"
+        data-i18n-aria-label="profile.notifications" data-i18n-title="profile.notifications">
         🔔
         <span id="notificationBadge" class="notification-badge hidden">0</span>
       </button>
-      <button id="installAppBtn" class="icon-btn install-app-btn hidden" aria-label="Насб кардани барнома" title="Насб кардани барнома">↓</button>
-      <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙️</button>
+      <button id="installAppBtn" class="icon-btn install-app-btn hidden" aria-label="Install app" title="Install app"
+        data-i18n-aria-label="pwa.install" data-i18n-title="pwa.install">↓</button>
+      <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings"
+        data-i18n-aria-label="profile.settings" data-i18n-title="profile.settings">⚙️</button>
     </div>
   </header>
 
@@ -124,6 +127,10 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
+
+  <!-- Back to top (all views) -->
+  <button id="backToTopBtn" class="back-to-top" type="button" aria-hidden="true" tabindex="-1"
+    data-i18n-aria-label="common.scroll_to_top" data-i18n-title="common.scroll_to_top">↑</button>
 </div>
 
 <script src="js/i18n.js"></script>

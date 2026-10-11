@@ -15,9 +15,16 @@ const RatingView = (() => {
   }
 
   async function render(container, { user }) {
+    const pairs = await API.get("/course/pairs");
+    const savedPairId = Number(localStorage.getItem("lingolion_active_pair_id"));
+    // Learners only ever see the rating of their own learning language —
+    // other language pairs are never offered on this screen.
+    const activePair = pairs.find((p) => p.id === savedPairId) || pairs[0] || null;
+    const query = activePair ? `?pair_id=${activePair.id}` : "";
+
     const [leaderboard, myRating] = await Promise.all([
-      API.get("/rating/leaderboard"),
-      API.get("/rating/me"),
+      API.get(`/rating/leaderboard${query}`),
+      API.get(`/rating/me${query}`),
     ]);
 
     container.innerHTML = `
@@ -35,6 +42,7 @@ const RatingView = (() => {
           <span class="leader-xp">${myRating.xp} XP</span>
         </div>
         <p class="lesson-meta">🔥 ${myRating.streak_days} ${I18N.t("rating.streak")} · ⭐ ${myRating.reputation_score}</p>
+        ${activePair ? `<p class="rating-pair-context"><span data-i18n="rating.language_pair"></span>: ${escapeHtml(activePair.source_language)} → ${escapeHtml(activePair.target_language)}</p>` : ""}
       </div>
       <div class="card" id="leaderboardList">
         ${leaderboard.map(leaderRowHtml).join("")}
@@ -53,9 +61,9 @@ const RatingView = (() => {
     });
 
     searchInput.addEventListener("input", () => {
-      const query = searchInput.value.trim().toLowerCase();
+      const queryText = searchInput.value.trim().toLowerCase();
       const filtered = leaderboard.filter((entry) =>
-        `${entry.first_name} ${entry.last_name}`.toLowerCase().includes(query)
+        `${entry.first_name} ${entry.last_name}`.toLowerCase().includes(queryText)
       );
       listEl.innerHTML = filtered.length
         ? filtered.map(leaderRowHtml).join("")

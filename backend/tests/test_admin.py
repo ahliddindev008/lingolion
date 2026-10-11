@@ -158,3 +158,76 @@ def test_admin_can_filter_inspect_and_update_user_rewards(client, registered_use
         "Tajik",
     }.issubset(available_languages)
     assert available_languages == sorted(available_languages, key=str.casefold)
+
+
+def test_admin_can_view_all_language_ratings(client, registered_user, monkeypatch, create_user, db_session):
+    from app.models import LanguagePair
+
+    monkeypatch.setattr("app.routers.admin.settings.ADMIN_EMAILS", "learner@example.com")
+    admin_headers = registered_user["headers"]
+    my_pair = registered_user["pair"]
+
+    peer = create_user("rated-peer@example.com", "rated-peer-device-01")
+    peer_headers = {
+        "Authorization": f"Bearer {peer.json()['access_token']}",
+        "X-Device-Id": "rated-peer-device-01",
+    }
+    peer_pair = _onboard_pair(client, peer_headers, "Tajik", "English")
+
+    other = create_user("rated-other@example.com", "rated-other-device-01")
+    other_headers = {
+        "Authorization": f"Bearer {other.json()['access_token']}",
+        "X-Device-Id": "rated-other-device-01",
+    }
+    other_pair = _onboard_pair(client, other_headers, "English", "Tajik")
+
+    for pair_id, xp in ((my_pair["id"], 10), (peer_pair["id"], 70), (other_pair["id"], 90)):
+        pair = db_session.query(LanguagePair).filter(LanguagePair.id == pair_id).first()
+        assert pair is not None
+        pair.xp = xp
+    db_session.commit()
+
+    response = client.get("/api/admin/ratings", headers=admin_headers)
+    assert response.status_code == 200
+    groups = {(group["source_language"], group["target_language"]): group for group in response.json()}
+    assert ("Tajik", "English") in groups
+    assert ("English", "Tajik") in groups
+
+    scoped = groups[("Tajik", "English")]
+    assert scoped["learner_count"] >= 2
+    xps = [entry["xp"] for entry in scoped["entries"]]
+    assert xps == sorted(xps, reverse=True)
+    assert xps[0] == 70
+    assert groups[("English", "Tajik")]["entries"][0]["xp"] == 90
+
+    # Non-admins cannot see the aggregated language ratings.
+    outsider = create_user("not-admin-ratings@example.com", "not-admin-ratings-dev")
+    denied = client.get(
+        "/api/admin/ratings",
+        headers={
+            "Authorization": f"Bearer {outsider.json()['access_token']}",
+            "X-Device-Id": "not-admin-ratings-dev",
+        },
+    )
+    assert denied.status_code == 403
+
+
+def _onboard_pair(client, headers, source, target):
+    response = client.post(
+        "/api/onboarding/complete",
+        headers=headers,
+        json={
+            "first_name": "Rated",
+            "last_name": "Learner",
+            "age": 24,
+            "region": "Dushanbe",
+            "source_language": source,
+            "target_language": target,
+            "current_level": "A1",
+            "learning_goal": "travel",
+            "daily_time_minutes": 15,
+            "interface_language": "tj",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()

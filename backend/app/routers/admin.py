@@ -250,3 +250,41 @@ def delete_user(
         raise HTTPException(status_code=409, detail="Admin accounts cannot be deleted here")
 
     delete_user_account(db, user)
+
+
+@router.get("/ratings")
+def language_ratings(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    """Rankings of every learning-language pair, grouped for the admin panel."""
+    rows = (
+        db.query(LanguagePair, User)
+        .join(User, User.id == LanguagePair.user_id)
+        .filter(User.is_active.is_(True))
+        .order_by(
+            LanguagePair.source_language.asc(),
+            LanguagePair.target_language.asc(),
+            LanguagePair.xp.desc(),
+            LanguagePair.id.asc(),
+        )
+        .all()
+    )
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for pair, user in rows:
+        key = (pair.source_language or "", pair.target_language or "")
+        grouped.setdefault(key, []).append(
+            {
+                "user_id": user.id,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "xp": pair.xp,
+                "streak_days": pair.streak_days,
+            }
+        )
+    return [
+        {
+            "source_language": source,
+            "target_language": target,
+            "learner_count": len(entries),
+            "entries": entries[:100],
+        }
+        for (source, target), entries in grouped.items()
+    ]

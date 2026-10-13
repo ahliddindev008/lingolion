@@ -171,6 +171,10 @@ html, body {
     margin-top: 4px; font-size: 12px; color: var(--text-muted); white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis;
   }
+  .wa-list-email {
+    margin-top: 2px; font-size: 11px; color: var(--text-muted); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
 
 .wa-chat-screen {
     position: fixed; z-index: 50; inset: 0;
@@ -240,6 +244,7 @@ html, body {
   .wa-header-info { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
   .wa-header-name { font-weight: 750; font-size: 15px; }
   .wa-header-status { color: #668076; font-size: 12px; }
+  .wa-header-email { color: #668076; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wa-menu-btn { font-size: 13px; letter-spacing: 1px; }
 
   .wa-chat-bg {
@@ -578,7 +583,45 @@ textarea { resize: vertical; min-height: 70px; }
 .leader-row:last-child { border-bottom: none; }
 .leader-rank { font-weight: 800; color: var(--purple); width: 26px; }
 .leader-name { flex: 1; font-weight: 600; }
+.leader-identity { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.leader-email { color: var(--text-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leader-xp { font-weight: 800; color: var(--green-dark); }
+.rating-filters { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.rating-period-tabs { display: flex; gap: 6px; }
+.rating-period-tab {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+.rating-period-tab:hover { border-color: #9bb49b; }
+.rating-period-tab.selected { border-color: var(--purple); background: var(--purple-light); color: var(--purple-dark); }
+.rating-select-row { display: flex; gap: 10px; }
+.rating-select { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rating-select span { color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+.rating-select select,
+.rating-select input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.rating-select select:focus,
+.rating-select input:focus { border-color: var(--green); outline: 0; box-shadow: 0 0 0 3px rgba(88, 133, 106, 0.14); }
+.partner-filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+.partner-filter { flex: 1 1 30%; display: flex; flex-direction: column; gap: 4px; min-width: 90px; }
+.partner-filter span { color: var(--purple); font-size: 11px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+.partner-filter select { min-width: 0; }
 
 /* Games */
 .game-card { text-align: center; }
@@ -1239,6 +1282,7 @@ textarea { min-height: 110px; }
 .communication-section .partner-avatar { border-color: #e6d5a9; background: #fdf6e3; color: #8a6d1f; }
 .communication-section .wa-list-name { color: var(--purple-dark); font-family: Georgia, "Times New Roman", serif; font-size: 15px; font-weight: 700; }
 .communication-section .wa-list-preview { color: #6b7688; }
+.communication-section .wa-list-email { color: #7d8798; }
 .wa-list-arrow { color: var(--coral); font-size: 23px; line-height: 1; }
 .communication-no-results { margin: 0; padding: 26px 14px; border: 1px dashed #c6cdda; border-radius: 6px; color: var(--text-muted); text-align: center; font-size: 13px; font-style: italic; }
 .communication-no-results.hidden { display: none; }
@@ -1251,6 +1295,7 @@ textarea { min-height: 110px; }
 .wa-header { min-height: 76px; background: linear-gradient(180deg, #16233f 0%, var(--purple-dark) 100%); border-bottom: 3px solid var(--coral); }
 .wa-header-name { color: #fff; font-family: Georgia, "Times New Roman", serif; font-weight: 700; letter-spacing: 0.2px; }
 .wa-header-status { color: #aab6cf; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.wa-header-email { color: #e6d5a9; font-size: 11px; letter-spacing: 0.2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-header .wa-avatar { border: 1px solid rgba(197, 155, 39, 0.55); background: rgba(197, 155, 39, 0.14); color: var(--coral); }
 .wa-back-btn, .wa-menu-btn, .wa-call-btn { border: 1px solid rgba(197, 155, 39, 0.5); background: rgba(255, 255, 255, 0.07); color: #f2e7c9; }
 .wa-back-btn:hover, .wa-menu-btn:hover, .wa-call-btn:hover { border-color: var(--coral); background: rgba(197, 155, 39, 0.22); color: #fff; }
@@ -1299,44 +1344,10 @@ textarea { min-height: 110px; }
 .voice-call-actions .call-accept-btn { border-color: var(--purple-dark); background: var(--purple-dark); color: var(--coral); }
 .voice-call-actions .call-end-btn { border-color: var(--danger); background: var(--danger); color: #fff; }
 
-/* ---- Гурӯҳҳо ва каналҳо + панели асосӣ дар чат (академӣ) ---- */
-.space-list-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.space-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.space-action-btn { min-height: 30px; padding: 6px 11px; border: 1px solid var(--purple-dark); border-radius: 4px; background: var(--purple-dark); color: var(--coral); font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; cursor: pointer; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
-.space-action-btn:hover { border-color: var(--coral); background: var(--coral); color: var(--purple-dark); }
-.space-action-btn.btn-outline { background: #fff; color: var(--purple); border-color: #d6dbe6; }
-.space-action-btn.btn-outline:hover { border-color: var(--coral); background: #fdf6e3; color: var(--purple-dark); }
-.communication-section .space-avatar { border: 1px solid #d5dbe7; background: #eef1f7; color: var(--purple); }
-.communication-section .space-avatar.channel-avatar { border-color: var(--purple-dark); background: var(--purple-dark); color: var(--coral); }
-.wa-header .wa-avatar.space-avatar { border: 1px solid rgba(197, 155, 39, 0.55); background: rgba(197, 155, 39, 0.14); color: var(--coral); }
-.space-kind-tag { display: inline-block; margin-left: 7px; padding: 1px 6px; border: 1px solid #d6dbe6; border-radius: 3px; background: #f4f6fb; color: var(--purple); font-family: "Segoe UI", "Noto Sans", sans-serif; font-size: 8.5px; font-style: normal; font-weight: 800; letter-spacing: 0.9px; text-transform: uppercase; vertical-align: middle; }
-.wa-header .space-kind-tag { border-color: rgba(197, 155, 39, 0.5); background: rgba(197, 155, 39, 0.12); color: var(--coral); }
 .msg-sender { display: block; margin-bottom: 4px; color: #97791a; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .msg.mine .msg-sender { color: var(--coral); }
 .wa-chat-bg { min-height: 0; }
-.space-readonly { padding: 11px 18px; border-bottom: 1px solid #e6e0cb; background: #f9f5e8; color: var(--purple-dark); font-size: 12px; font-style: italic; text-align: center; }
 
-/* Create / join modal — mirrors the academic auth form */
-.space-modal-content { border-top: 4px solid var(--purple-dark); }
-.space-form { display: grid; gap: 15px; }
-.space-fields { display: grid; gap: 13px; }
-.space-field { display: grid; gap: 6px; }
-.space-field > span { color: var(--purple-dark); font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; }
-.space-field input, .space-field textarea { min-height: 44px; padding: 10px 13px; border: 1px solid var(--border); border-radius: 4px; background: #f8fafc; color: var(--text); font: inherit; font-size: 14px; }
-.space-field textarea { min-height: 70px; resize: vertical; }
-.space-field input:focus, .space-field textarea:focus { border-color: var(--purple-dark); background: #fff; box-shadow: 0 0 0 3px rgba(27, 42, 74, 0.12); outline: none; }
-.space-members-field { margin: 0; padding: 0; border: 0; }
-.space-members-field legend { margin-bottom: 7px; color: var(--purple-dark); font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; }
-.space-members-list { max-height: 210px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; background: #fff; }
-.space-member-option { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-bottom: 1px solid #edf0f5; cursor: pointer; transition: background 130ms ease; }
-.space-member-option:last-child { border-bottom: 0; }
-.space-member-option:hover { background: #f5f7fc; }
-.space-member-option input { accent-color: var(--purple-dark); }
-.space-member-avatar { display: flex; width: 34px; height: 34px; font-size: 11px; }
-.space-member-name { font-size: 13px; font-weight: 600; color: var(--text); }
-.space-members-hint { margin: 0; padding: 14px 10px; color: var(--text-muted); font-size: 12px; font-style: italic; text-align: center; }
-.space-form-error { margin: 0; padding: 9px 11px; border-left: 3px solid var(--danger); background: #fdf0ee; color: var(--danger); font-size: 12px; }
-.space-form-error.hidden { display: none; }
 .space-form-actions { display: flex; justify-content: flex-end; gap: 9px; }
 
 /* Install-help dialog (PWA fallback when no native prompt is available) */
@@ -1371,38 +1382,18 @@ textarea { min-height: 110px; }
 .admin-rating-list strong { color: var(--purple-dark); font-size: 12px; white-space: nowrap; }
 .admin-ratings-empty { margin: 0; padding: 26px 14px; border: 1px dashed var(--border); border-radius: 6px; color: var(--text-muted); font-size: 13px; font-style: italic; text-align: center; }
 
-/* ---- Create/join space modal: fits every device, always submittable ---- */
-/* The card is a flex column: header stays fixed while the form area scrolls,
-   so the submit buttons remain reachable on short screens and keyboards. */
-.space-modal .modal-content { display: flex; flex-direction: column; max-height: min(92vh, 780px); max-height: min(92dvh, 780px); overflow-x: hidden; overflow-y: auto; }
-.space-modal .modal-header { flex-shrink: 0; }
-.space-modal .space-form { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
 .space-form-actions { position: sticky; bottom: 0; z-index: 1; margin-top: 2px; padding-top: 12px; background: var(--bg); box-shadow: 0 -10px 14px -8px rgba(15, 23, 42, 0.16); }
 .space-form-actions .btn { min-height: 44px; }
-.space-member-option { min-height: 48px; }
-.space-modal .modal-content { scrollbar-width: thin; }
 
 @media (max-width: 700px) {
-  /* Bottom-sheet mode: full width, safe-area aware, scrollable. */
-  .space-modal .modal-content { max-height: 94vh; max-height: 94dvh; border-radius: 10px 10px 0 0; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
-  /* 16px prevents iOS Safari from zooming the viewport on focus. */
-  .space-field input, .space-field textarea { font-size: 16px; }
   .space-form-actions .btn { flex: 1 1 0; min-width: 0; min-height: 48px; padding-left: 6px; padding-right: 6px; white-space: nowrap; }
   .space-form-actions { gap: 8px; }
-  .space-members-list { max-height: 34vh; max-height: 34dvh; }
 }
 
 @media (max-width: 380px) {
   /* Very narrow phones: keep both action buttons on one row. */
   .space-form-actions .btn { font-size: 13px; padding-left: 4px; padding-right: 4px; }
   .space-form-actions { gap: 6px; }
-}
-
-@media (max-height: 520px) {
-  /* Landscape phones: shrink the card and the members list. */
-  .space-modal .modal-content { max-height: 96vh; max-height: 96dvh; }
-  .space-members-list { max-height: 120px; }
-  .space-field textarea { min-height: 54px; }
 }
 
 .modal { align-items: center; padding: 20px; background: rgba(22, 39, 31, 0.45); backdrop-filter: blur(4px); }

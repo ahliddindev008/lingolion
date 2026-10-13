@@ -12,6 +12,7 @@ from app.models import (
     Lesson,
     Notification,
     SharedCourseLessonContent,
+    SharedCustomLessonContent,
     SharedSpeakingPracticeContent,
     User,
 )
@@ -68,6 +69,24 @@ def _has_speaking_conversation(content: dict) -> bool:
         isinstance(conversation, list)
         and len(conversation) == 4
         and all(isinstance(turn, dict) for turn in conversation)
+    )
+
+
+def _normalize_custom_topic(topic: str) -> str:
+    """Lower-case, whitespace-collapsed topic so equal requests share one cached lesson."""
+    return " ".join(topic.casefold().split())
+
+
+def _shared_custom_content(db: Session, pair: LanguagePair, level: str, topic_key: str) -> SharedCustomLessonContent | None:
+    return (
+        db.query(SharedCustomLessonContent)
+        .filter(
+            SharedCustomLessonContent.source_language == pair.source_language,
+            SharedCustomLessonContent.target_language == pair.target_language,
+            SharedCustomLessonContent.level == level,
+            SharedCustomLessonContent.topic_key == topic_key,
+        )
+        .first()
     )
 
 
@@ -523,22 +542,52 @@ def generate_custom_lesson(
     if not topic:
         raise HTTPException(status_code=422, detail="Topic must not be blank")
 
-    content = gemini_service.generate_lesson(
-        source_language=pair.source_language,
-        target_language=pair.target_language,
-        level=pair.current_level,
-        topic=topic,
-        lesson_type="grammar",
-        unit_number=None,
-    )
-    if not isinstance(content, dict) or _lesson_content_unavailable(content):
-        raise HTTPException(status_code=503, detail="lesson_content_unavailable")
+    course_level = pair.current_level
+    topic_key = _normalize_custom_topic(topic)
+    shared_content = _shared_custom_content(db, pair, course_level, topic_key)
+
+    if shared_content:
+        content = dict(shared_content.content)
+    else:
+        content = gemini_service.generate_lesson(
+            source_language=pair.source_language,
+            target_language=pair.target_language,
+            level=course_level,
+            topic=topic,
+            lesson_type="grammar",
+            unit_number=None,
+        )
+        if not isinstance(content, dict) or _lesson_content_unavailable(content):
+            raise HTTPException(status_code=503, detail="lesson_content_unavailable")
+
     content.update({"custom_topic": True, "lesson_type": "custom"})
+
+    if shared_content is None:
+        shared_content = SharedCustomLessonContent(
+            source_language=pair.source_language,
+            target_language=pair.target_language,
+            level=course_level,
+            topic_key=topic_key,
+            title=content.get("title", topic),
+            topic=content.get("topic", topic),
+            content=content,
+        )
+        db.add(shared_content)
+        try:
+            db.commit()
+        except IntegrityError:
+            # Another learner requested the same topic first and won the insert.
+            db.rollback()
+            winner = _shared_custom_content(db, pair, course_level, topic_key)
+            if winner is None:
+                raise
+            content = dict(winner.content)
+            content.update({"custom_topic": True, "lesson_type": "custom"})
 
     lesson = Lesson(
         language_pair_id=pair.id,
         title=content.get("title", topic),
-        level=pair.current_level,
+        level=course_level,
         topic=content.get("topic", topic),
         content=content,
     )

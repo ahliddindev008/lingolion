@@ -332,7 +332,7 @@
     "yesterday": "昨日",
     "typing": "入力中...",
     "partners": "パートナー",
-    "search_placeholder": "チャットを検索...",
+    "search_placeholder": "名前またはメールアドレスで検索...",
     "back": "会話一覧に戻る",
     "details": "会話の詳細",
     "clear_conversation": "自分のアカウントから会話を削除",
@@ -374,7 +374,7 @@
     "xp": "XP",
     "streak": "連続日数",
     "your_rank": "あなたの順位",
-    "search_placeholder": "ユーザーを検索..."
+    "search_placeholder": "名前またはメールアドレスで検索..."
   },
   "games": {
     "title": "ゲーム",

@@ -333,7 +333,7 @@
     "yesterday": "Hier",
     "typing": "écrit...",
     "partners": "Interlocuteurs réels",
-    "search_placeholder": "Rechercher des discussions...",
+    "search_placeholder": "Rechercher par nom ou e-mail...",
     "back": "Retour aux conversations",
     "details": "Détails de la conversation",
     "clear_conversation": "Effacer la conversation de mon compte",
@@ -375,7 +375,7 @@
     "xp": "XP",
     "streak": "Série",
     "your_rank": "Votre rang",
-    "search_placeholder": "Rechercher un utilisateur..."
+    "search_placeholder": "Rechercher par nom ou e-mail..."
   },
   "games": {
     "title": "Jeux",

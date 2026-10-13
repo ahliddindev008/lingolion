@@ -332,7 +332,7 @@
     "yesterday": "Ayer",
     "typing": "está escribiendo...",
     "partners": "Compañeros de idiomas",
-    "search_placeholder": "Buscar conversaciones...",
+    "search_placeholder": "Buscar por nombre o correo electrónico...",
     "back": "Volver a las conversaciones",
     "details": "Detalles de la conversación",
     "clear_conversation": "Borrar la conversación para mí",
@@ -374,7 +374,7 @@
     "xp": "XP",
     "streak": "Racha",
     "your_rank": "Tu posición",
-    "search_placeholder": "Buscar usuarios..."
+    "search_placeholder": "Buscar por nombre o correo electrónico..."
   },
   "games": {
     "title": "Juegos",

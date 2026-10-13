@@ -183,6 +183,89 @@ def test_custom_lesson_rejects_blank_topic(client, registered_user):
     assert response.status_code == 422
 
 
+def test_custom_lesson_content_is_shared_between_learners(
+    client, registered_user, create_user, monkeypatch, db_session
+):
+    from app import gemini_service
+    from app.models import SharedCustomLessonContent
+
+    generated = []
+    original_generate = gemini_service.generate_lesson
+
+    def count_generation(**kwargs):
+        generated.append(kwargs)
+        return original_generate(**kwargs)
+
+    monkeypatch.setattr(gemini_service, "generate_lesson", count_generation)
+
+    first_response = client.post(
+        "/api/course/lessons/generate-custom",
+        headers=registered_user["headers"],
+        json={"language_pair_id": registered_user["pair"]["id"], "topic": "Ordering Food"},
+    )
+    assert first_response.status_code == 200
+
+    device_id = "shared-custom-device-0001"
+    registration = create_user("shared-custom@example.com", device_id)
+    headers = {
+        "Authorization": f"Bearer {registration.json()['access_token']}",
+        "X-Device-Id": device_id,
+    }
+    onboarding_response = client.post(
+        "/api/onboarding/complete",
+        headers=headers,
+        json={
+            "first_name": "Custom",
+            "last_name": "Learner",
+            "age": 24,
+            "region": "Dushanbe",
+            "source_language": "Tajik",
+            "target_language": "English",
+            "current_level": "A1",
+            "learning_goal": "travel",
+            "daily_time_minutes": 15,
+            "interface_language": "tj",
+        },
+    )
+    assert onboarding_response.status_code == 200
+
+    # Different casing/whitespace must resolve to the same cached lesson.
+    second_response = client.post(
+        "/api/course/lessons/generate-custom",
+        headers=headers,
+        json={"language_pair_id": onboarding_response.json()["id"], "topic": "  ordering   food  "},
+    )
+
+    assert second_response.status_code == 200
+    first_lesson = first_response.json()
+    second_lesson = second_response.json()
+    assert first_lesson["id"] != second_lesson["id"]
+    assert first_lesson["content"]["vocabulary"] == second_lesson["content"]["vocabulary"]
+    assert second_lesson["content"]["custom_topic"] is True
+    assert len(generated) == 1
+    assert db_session.query(SharedCustomLessonContent).count() == 1
+
+    # Progress stays personal: completing one learner's copy leaves the other untouched.
+    passed = client.post(
+        "/api/course/lessons/complete",
+        headers=registered_user["headers"],
+        json={"lesson_id": first_lesson["id"], "score": 100},
+    )
+    assert passed.status_code == 200
+    second_progress = client.get(
+        f"/api/course/pairs/{onboarding_response.json()['id']}/lessons",
+        headers=headers,
+    ).json()
+    second_copy = next(item for item in second_progress if item["id"] == second_lesson["id"])
+    assert second_copy["is_completed"] is False
+
+    # Custom lessons must never advance the main course curriculum.
+    curriculum = client.get(
+        f"/api/course/pairs/{onboarding_response.json()['id']}/curriculum", headers=headers
+    ).json()
+    assert curriculum["units"][0]["lesson_id"] is None
+
+
 def test_same_language_pair_is_rejected(client, registered_user):
     headers = registered_user["headers"]
 

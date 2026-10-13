@@ -333,7 +333,7 @@
     "yesterday": "دیروز",
     "typing": "در حال تایپ...",
     "partners": "هم‌صحبت‌های واقعی",
-    "search_placeholder": "جستجوی چت‌ها...",
+    "search_placeholder": "جستجو بر اساس نام یا ایمیل...",
     "back": "بازگشت به گفتگوها",
     "details": "اطلاعات گفتگو",
     "clear_conversation": "حذف گفتگو از حساب من",
@@ -375,7 +375,7 @@
     "xp": "XP",
     "streak": "زنجیره",
     "your_rank": "رتبه شما",
-    "search_placeholder": "جستجوی کاربر..."
+    "search_placeholder": "جستجو بر اساس نام یا ایمیل..."
   },
   "games": {
     "title": "بازی‌ها",

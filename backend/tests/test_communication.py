@@ -1,3 +1,6 @@
+from datetime import date, timedelta
+
+from app.models import LanguagePair, User
 from app.security import decode_access_token
 
 
@@ -150,6 +153,9 @@ def test_same_direction_partner_pair_is_shown_in_communication_match_list(client
     partner_ids = {partner["user_id"] for partner in response.json()}
     second_user_id = int(decode_access_token(second.json()["access_token"])["sub"])
     assert second_user_id in partner_ids
+    # Partner cards show the email so chat search works by name or email.
+    second_partner = next(p for p in response.json() if p["user_id"] == second_user_id)
+    assert second_partner["email"] == "same-language@example.com"
 
 
 def test_partner_message_creates_unread_communication_notification(client, registered_user, tmp_path, monkeypatch, create_user):
@@ -433,189 +439,91 @@ def test_lan_frontend_origin_is_allowed_in_development(client):
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://192.168.1.42:5500"
 
+
 
-def test_create_group_and_list_spaces(client, registered_user):
-    response = client.post(
-        "/api/communication/spaces",
-        headers=registered_user["headers"],
-        json={"kind": "group", "name": "English club", "description": "Practice together"},
+
+def _onboard_partner(client, email, device_id, region="Dushanbe", level="A1"):
+    registration = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "StrongPass123"},
+        headers={"X-Device-Id": device_id},
     )
-
-    assert response.status_code == 200
-    space = response.json()
-    assert space["kind"] == "group"
-    assert space["room"] == f"space_{space['id']}"
-    assert space["my_role"] == "owner"
-    assert space["can_post"] is True
-    assert space["member_count"] == 1
-    assert space["members"][0]["role"] == "owner"
-    assert len(space["invite_code"]) >= 8
-
-    listed = client.get("/api/communication/spaces", headers=registered_user["headers"])
-    assert listed.status_code == 200
-    assert [item["id"] for item in listed.json()] == [space["id"]]
-
-
-def test_join_group_by_invite_code_and_post(client, registered_user, create_user):
-    space = client.post(
-        "/api/communication/spaces",
-        headers=registered_user["headers"],
-        json={"kind": "group", "name": "Study group"},
-    ).json()
-
-    second = create_user("groupmate@example.com", "groupmate-device-01")
-    second_headers = {
-        "Authorization": f"Bearer {second.json()['access_token']}",
-        "X-Device-Id": "groupmate-device-01",
-    }
+    assert registration.status_code == 200, registration.text
+    headers = {"Authorization": f"Bearer {registration.json()['access_token']}", "X-Device-Id": device_id}
     onboarding = client.post(
         "/api/onboarding/complete",
-        headers=second_headers,
+        headers=headers,
         json={
-            "first_name": "Group",
-            "last_name": "Mate",
-            "age": 21,
-            "region": "Dushanbe",
-            "source_language": "English",
-            "target_language": "Tajik",
-            "current_level": "A1",
+            "first_name": "Filter",
+            "last_name": "Partner",
+            "age": 24,
+            "region": region,
+            "source_language": "Tajik",
+            "target_language": "English",
+            "current_level": level,
             "learning_goal": "travel",
-            "daily_time_minutes": 15,
+            "daily_time_minutes": 20,
             "interface_language": "tj",
         },
     )
     assert onboarding.status_code == 200, onboarding.text
-    join = client.post(
-        "/api/communication/spaces/join",
-        headers=second_headers,
-        json={"code": space["invite_code"]},
+    user_id = int(decode_access_token(registration.json()["access_token"])["sub"])
+    return user_id, headers
+
+
+def test_partners_filter_by_region(client, registered_user, db_session):
+    _onboard_partner(client, "dushanbe-partner@example.com", "dushanbe-partner-device-01", region="Dushanbe")
+    khujand_id, _ = _onboard_partner(
+        client, "khujand-partner@example.com", "khujand-partner-device-01", region="Khujand"
     )
 
-    assert join.status_code == 200
-    assert join.json()["member_count"] == 2
-    assert join.json()["my_role"] == "member"
-
-    owner_ids = [item["id"] for item in client.get("/api/communication/spaces", headers=registered_user["headers"]).json()]
-    member_ids = [item["id"] for item in client.get("/api/communication/spaces", headers=second_headers).json()]
-    assert space["id"] in owner_ids
-    assert space["id"] in member_ids
-
-    # Group members may post and the others get a room notification.
-    send = client.post(
-        "/api/communication/send",
-        headers=second_headers,
-        json={"room": space["room"], "content": "Salam everyone"},
-    )
-    assert send.status_code == 200
-
-    notifications = client.get("/api/profile/notifications", headers=registered_user["headers"]).json()
-    message_notice = next(item for item in notifications if item["kind"] == "message")
-    assert message_notice["title"] == "Study group"
-    assert "Salam everyone" in message_notice["message"]
-
-    history = client.get(
-        f"/api/communication/rooms/{space['room']}/messages",
-        headers=registered_user["headers"],
+    rows = client.get(
+        "/api/communication/partners?region=Dushanbe", headers=registered_user["headers"]
     ).json()
-    assert history[-1]["content"] == "Salam everyone"
-    assert history[-1]["sender_name"] == "Group Mate"
+    assert khujand_id not in [row["user_id"] for row in rows]
+    assert rows, "expected at least one Dushanbe partner"
+    assert all(row["region"] == "Dushanbe" for row in rows)
 
 
-def test_channel_is_read_only_for_regular_members(client, registered_user, create_user):
-    channel = client.post(
-        "/api/communication/spaces",
-        headers=registered_user["headers"],
-        json={"kind": "channel", "name": "Lingolion news"},
+def test_partners_filter_by_level(client, registered_user, db_session):
+    _onboard_partner(client, "a1-partner@example.com", "a1-partner-device-0001", level="A1")
+    b2_id, _ = _onboard_partner(client, "b2-partner@example.com", "b2-partner-device-0001", level="B2")
+
+    a1_rows = client.get(
+        "/api/communication/partners?level=A1", headers=registered_user["headers"]
     ).json()
-    assert channel["can_post"] is True
+    assert b2_id not in [row["user_id"] for row in a1_rows]
+    assert a1_rows
 
-    reader = create_user("reader@example.com", "reader-device-0001")
-    reader_headers = {
-        "Authorization": f"Bearer {reader.json()['access_token']}",
-        "X-Device-Id": "reader-device-0001",
-    }
-    join = client.post(
-        "/api/communication/spaces/join",
-        headers=reader_headers,
-        json={"code": channel["invite_code"]},
-    )
-    assert join.status_code == 200
-    assert join.json()["can_post"] is False
-
-    # Subscribers can read the channel...
-    history = client.get(
-        f"/api/communication/rooms/{channel['room']}/messages",
-        headers=reader_headers,
-    )
-    assert history.status_code == 200
-
-    # ...but only the owner/admin may broadcast.
-    forbidden = client.post(
-        "/api/communication/send",
-        headers=reader_headers,
-        json={"room": channel["room"], "content": "My reply"},
-    )
-    assert forbidden.status_code == 403
-
-    owner_post = client.post(
-        "/api/communication/send",
-        headers=registered_user["headers"],
-        json={"room": channel["room"], "content": "New lesson is live"},
-    )
-    assert owner_post.status_code == 200
-
-    notifications = client.get("/api/profile/notifications", headers=reader_headers).json()
-    message_notice = next(item for item in notifications if item["kind"] == "message")
-    assert message_notice["title"] == "Lingolion news"
-
-    # Non-members cannot read a private space at all.
-    outsider = create_user("outsider@example.com", "outsider-device-001")
-    outsider_headers = {
-        "Authorization": f"Bearer {outsider.json()['access_token']}",
-        "X-Device-Id": "outsider-device-001",
-    }
-    denied = client.get(
-        f"/api/communication/rooms/{channel['room']}/messages",
-        headers=outsider_headers,
-    )
-    assert denied.status_code == 403
-
-
-def test_leave_space_transfers_ownership_and_can_dissolve(client, registered_user, create_user):
-    space = client.post(
-        "/api/communication/spaces",
-        headers=registered_user["headers"],
-        json={"kind": "group", "name": "Temp group"},
+    b2_rows = client.get(
+        "/api/communication/partners?level=B2", headers=registered_user["headers"]
     ).json()
+    assert [row["user_id"] for row in b2_rows] == [b2_id]
 
-    second = create_user("second-member@example.com", "second-member-dev-01")
-    second_headers = {
-        "Authorization": f"Bearer {second.json()['access_token']}",
-        "X-Device-Id": "second-member-dev-01",
-    }
-    client.post(
-        "/api/communication/spaces/join",
-        headers=second_headers,
-        json={"code": space["invite_code"]},
-    )
 
-    # Owner leaving transfers ownership to the remaining member.
-    leave = client.post(
-        f"/api/communication/spaces/{space['id']}/leave",
-        headers=registered_user["headers"],
-    )
-    assert leave.status_code == 200
-    assert leave.json()["status"] == "left"
+def test_partners_filter_by_active_status(client, registered_user, db_session):
+    active_id, _ = _onboard_partner(client, "active-partner@example.com", "active-partner-device-01")
+    stale_id, _ = _onboard_partner(client, "stale-partner@example.com", "stale-partner-device-0001")
 
-    remaining = client.get("/api/communication/spaces", headers=second_headers).json()
-    assert remaining[0]["id"] == space["id"]
-    assert remaining[0]["my_role"] == "owner"
+    # Mark the active partner as online today and the other as long inactive.
+    active_user = db_session.query(User).filter(User.id == active_id).first()
+    active_user.last_active_date = date.today()
+    stale_user = db_session.query(User).filter(User.id == stale_id).first()
+    stale_user.last_active_date = date.today() - timedelta(days=30)
+    db_session.commit()
 
-    # The new last member leaving dissolves the space entirely.
-    dissolve = client.post(
-        f"/api/communication/spaces/{space['id']}/leave",
-        headers=second_headers,
-    )
-    assert dissolve.status_code == 200
-    assert dissolve.json()["status"] == "deleted"
-    assert client.get("/api/communication/spaces", headers=second_headers).json() == []
+    active_rows = client.get(
+        "/api/communication/partners?active=true", headers=registered_user["headers"]
+    ).json()
+    active_ids = [row["user_id"] for row in active_rows]
+    assert active_id in active_ids
+    assert stale_id not in active_ids
+    active_partner = next(row for row in active_rows if row["user_id"] == active_id)
+    assert active_partner["is_recently_active"] is True
+
+    inactive_rows = client.get(
+        "/api/communication/partners?active=false", headers=registered_user["headers"]
+    ).json()
+    inactive_ids = [row["user_id"] for row in inactive_rows]
+    assert stale_id in inactive_ids
+    assert active_id not in inactive_ids

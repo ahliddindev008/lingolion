@@ -483,7 +483,7 @@ def send_message(
                 correction_notes=analysis.get("correction_notes") or None,
             )
             db.add(ai_msg)
-            bump_streak(current_user)
+            bump_streak(current_user, db)
             advance_progress(db, current_user, "send_messages", 1)
             db.commit()
             db.refresh(ai_msg)

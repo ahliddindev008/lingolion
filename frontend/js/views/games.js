@@ -760,8 +760,7 @@ const GamesView = (() => {
           matchedCount++;
           selected = null;
           if (matchedCount === pairsData.length) {
-            const score = 100;
-            submitScore("vocab_match", score, showToast, pairId);
+            finishNewGame(gameArea, "vocab_match", 100, showToast, pairId);
           }
         } else {
           selected.classList.remove("selected");
@@ -779,15 +778,14 @@ const GamesView = (() => {
     function showItem() {
       if (idx >= items.length) {
         const score = Math.round((correct / (items.length || 1)) * 100);
-        gameArea.innerHTML = `<div class="card"><p data-i18n="games.score"></p><h2>${score}%</h2></div>`;
-        I18N.applyToDom(gameArea);
-        submitScore("translation", score, showToast, pairId);
+        finishNewGame(gameArea, "translation", score, showToast, pairId);
         return;
       }
       const item = items[idx];
       gameArea.innerHTML = `
         ${gameBackRowHtml()}
         <div class="card">
+          <p class="lesson-meta">${idx + 1}/${items.length}</p>
           <p>${escapeHtml(item.sentence)}</p>
           <input type="text" id="translationAnswer" />
           <button class="btn btn-primary" id="submitAnswer" style="margin-top:10px;" data-i18n="communication.send"></button>
@@ -812,9 +810,7 @@ const GamesView = (() => {
     function showItem() {
       if (index >= items.length) {
         const score = Math.round((correct / (items.length || 1)) * 100);
-        gameArea.innerHTML = `<div class="card"><p data-i18n="games.score"></p><h2>${score}%</h2></div>`;
-        I18N.applyToDom(gameArea);
-        submitScore("multiple_choice", score, showToast, pairId);
+        finishNewGame(gameArea, "multiple_choice", score, showToast, pairId);
         return;
       }
 
@@ -870,9 +866,7 @@ const GamesView = (() => {
     function showItem() {
       if (index >= items.length) {
         const score = Math.round((correct / (items.length || 1)) * 100);
-        gameArea.innerHTML = `<div class="card"><p data-i18n="games.score"></p><h2>${score}%</h2></div>`;
-        I18N.applyToDom(gameArea);
-        submitScore("word_scramble", score, showToast, pairId);
+        finishNewGame(gameArea, "word_scramble", score, showToast, pairId);
         return;
       }
 
@@ -931,9 +925,7 @@ const GamesView = (() => {
     function showItem() {
       if (idx >= items.length) {
         const score = Math.round((correct / (items.length || 1)) * 100);
-        gameArea.innerHTML = `<div class="card"><p data-i18n="games.score"></p><h2>${score}%</h2></div>`;
-        I18N.applyToDom(gameArea);
-        submitScore("speed_challenge", score, showToast, pairId);
+        finishNewGame(gameArea, "speed_challenge", score, showToast, pairId);
         return;
       }
       const item = items[idx];
@@ -989,20 +981,31 @@ const GamesView = (() => {
     submitScore(gameType, score, showToast, pairId);
   }
 
-  // Returns to the topic picker of the game currently in progress.
-  function reopenGameTopicPicker() {
+  // Returns to the topic picker of the game currently in progress. Re-fetches
+  // the unlock progress from the API so a topic unlocked by the last round
+  // (80%+) appears immediately in the list.
+  async function reopenGameTopicPicker() {
     const state = gameTopicPickerState;
     if (!state) {
       closeActivity();
       return;
     }
     activeGameTopicId = null;
+    let unlockedTopics = state.unlockedTopics;
+    try {
+      const progress = await API.get(
+        `/games/progress?game_type=${encodeURIComponent(state.gameType)}&language_pair_id=${encodeURIComponent(state.pairId)}`,
+      );
+      unlockedTopics = new Set(progress.unlocked_topics);
+    } catch (error) {
+      // Offline or transient failure — fall back to the last known state.
+    }
     renderGameTopicPicker(
       state.gameArea,
       state.gameType,
       state.showToast,
       state.pairId,
-      state.unlockedTopics,
+      unlockedTopics,
     );
   }
 

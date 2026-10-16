@@ -38,7 +38,7 @@ def test_game_topics_unlock_sequentially_after_eighty_percent(client, registered
             "game_type": "vocab_match",
             "score": 100,
             "language_pair_id": pair_id,
-            "topic_id": "cafe",
+            "topic_id": "hobby_and_free_time",
         },
     )
     assert locked_attempt.status_code == 409
@@ -69,24 +69,24 @@ def test_game_topics_unlock_sequentially_after_eighty_percent(client, registered
     )
     assert passing_score.status_code == 200
     assert passing_score.json()["topic_unlocked"] is True
-    assert client.get(progress_url, headers=headers).json()["unlocked_topics"] == ["greetings", "cafe"]
+    assert client.get(progress_url, headers=headers).json()["unlocked_topics"] == ["greetings", "introduction_details"]
 
-    cafe_score = client.post(
+    second_topic_score = client.post(
         "/api/games/submit",
         headers=headers,
         json={
             "game_type": "vocab_match",
             "score": 80,
             "language_pair_id": pair_id,
-            "topic_id": "cafe",
+            "topic_id": "introduction_details",
         },
     )
-    assert cafe_score.status_code == 200
-    assert cafe_score.json()["topic_unlocked"] is True
+    assert second_topic_score.status_code == 200
+    assert second_topic_score.json()["topic_unlocked"] is True
     assert client.get(progress_url, headers=headers).json()["unlocked_topics"] == [
         "greetings",
-        "cafe",
-        "travel",
+        "introduction_details",
+        "family_and_friends",
     ]
 
     another_game_progress = client.get(

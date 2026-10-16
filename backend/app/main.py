@@ -13,7 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import engine
 from app.rate_limit import limiter
-from app.routers import admin, auth, challenges, communication, course, games, onboarding, profile, rating, translation
+from app.routers import admin, auth, challenges, communication, course, games, onboarding, profile, rating, shop, translation
 
 logging.basicConfig(level=logging.INFO)
 
@@ -64,6 +64,7 @@ app.include_router(rating.router)
 app.include_router(games.router)
 app.include_router(challenges.router)
 app.include_router(profile.router)
+app.include_router(shop.router)
 app.include_router(translation.router)
 
 

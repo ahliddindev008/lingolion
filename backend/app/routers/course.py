@@ -742,7 +742,7 @@ def complete_lesson(
         level_index = _CEFR_LEVELS.index(lesson.level) if lesson.level in _CEFR_LEVELS else 0
         if level_index < len(_CEFR_LEVELS) - 1:
             lesson.language_pair.current_level = _CEFR_LEVELS[level_index + 1]
-    bump_streak(current_user)
+    bump_streak(current_user, db)
     db.commit()
 
     advance_progress(db, current_user, "complete_lesson", 1)

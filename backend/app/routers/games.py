@@ -11,7 +11,12 @@ from app.websocket_manager import bump_streak
 
 router = APIRouter(prefix="/api/games", tags=["games"])
 
-_GAME_TOPIC_IDS = ("greetings", "cafe", "travel")
+_GAME_TOPIC_IDS = (
+    "greetings", "introduction_details", "family_and_friends", "on_the_bus", "in_the_taxi",
+    "at_work", "shopping", "at_the_restaurant", "at_the_hotel", "at_the_airport",
+    "at_the_university", "at_the_school", "at_the_embassy", "on_the_phone",
+    "at_the_hospital", "at_the_bank", "at_the_pharmacy", "hobby_and_free_time",
+)
 _GAME_TYPE_PATTERN = "^(vocabulary_learning|vocab_match|translation|speed_challenge|multiple_choice|word_scramble|listening|speaking|writing|reading)$"
 _TOPIC_UNLOCK_SCORE = 80
 
@@ -109,7 +114,7 @@ def submit_score(
 
     current_user.xp += xp_earned
     current_user.coins += xp_earned // 3
-    bump_streak(current_user)
+    bump_streak(current_user, db)
 
     if payload.language_pair_id:
         pair = (

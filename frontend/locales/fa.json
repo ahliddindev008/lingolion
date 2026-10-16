@@ -1,4 +1,3 @@
-
 {
   "app_name": "Lingolion",
   "tagline": "زبان را با کمک هوش مصنوعی یاد بگیرید",
@@ -513,7 +512,38 @@
     "learning_course": "دوره در حال یادگیری",
     "no_courses": "دوره فعالی وجود ندارد.",
     "progress": "پیشرفت",
-    "account_updates": "به‌روزرسانی‌ها"
+    "account_updates": "به‌روزرسانی‌ها",
+    "shop_intro": "سکه‌های کسب‌شده",
+    "shop_title": "فروشگاه",
+    "shop_lion_hint": "برای شیر لباس بخرید",
+    "shop_tab_sticker": "برچسب‌ها",
+    "shop_tab_shield": "سپرها",
+    "shop_tab_gift": "هدایا",
+    "shop_tab_lion_outfit": "لباس شیر",
+    "shop_buy": "خرید",
+    "shop_equip": "بپوش",
+    "shop_unequip": "درآور",
+    "shop_send": "ارسال",
+    "shop_bought": "خرید انجام شد ✅",
+    "shop_equipped": "لباس عوض شد ✅",
+    "shop_not_enough": "سکه کافی نیست",
+    "shop_no_friends": "هنوز دوستی پیدا نشد",
+    "shop_pick_friend": "یک دوست انتخاب کنید",
+    "shop_gift_sent": "هدیه برای دوستتان ارسال شد 🎁",
+    "shop_items": {
+      "sticker_wave": "برچسب: سلام",
+      "sticker_fire": "برچسب: آتش",
+      "sticker_heart": "برچسب: قلب",
+      "sticker_party": "برچسب: جشن",
+      "shield_streak": "سپر زنجیره روزانه",
+      "gift_flower": "گل",
+      "gift_cake": "کیک",
+      "gift_lion_plush": "عروسک خرس شیر",
+      "lion_cap": "کلاه",
+      "lion_scarf": "روسری",
+      "lion_sunglasses": "عینک آفتابی",
+      "lion_crown": "تاج"
+    }
   },
   "common": {
     "loading": "در حال بارگذاری...",

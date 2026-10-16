@@ -191,7 +191,10 @@ class GameScoreSubmit(BaseModel):
     game_type: str = Field(pattern="^(vocabulary_learning|vocab_match|translation|speed_challenge|multiple_choice|word_scramble|listening|speaking|writing|reading)$")
     score: int = Field(ge=0, le=100000)
     language_pair_id: Optional[int] = None
-    topic_id: Optional[str] = Field(default=None, pattern="^(greetings|cafe|travel)$")
+    topic_id: Optional[str] = Field(
+        default=None,
+        pattern="^(greetings|introduction_details|family_and_friends|on_the_bus|in_the_taxi|at_work|shopping|at_the_restaurant|at_the_hotel|at_the_airport|at_the_university|at_the_school|at_the_embassy|on_the_phone|at_the_hospital|at_the_bank|at_the_pharmacy|hobby_and_free_time)$",
+    )
 
 
 class TranslationRequest(BaseModel):

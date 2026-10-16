@@ -683,6 +683,27 @@ textarea { resize: vertical; min-height: 70px; }
 .profile-notification p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; }
 .profile-notification .btn { width: auto; margin: 0; flex-shrink: 0; }
 .profile-empty { margin: 0; color: var(--text-muted); font-size: 13px; }
+
+/* Profile shop */
+.shop-coins-badge { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid #ecd9a1; border-radius: 99px; background: #fff8e6; color: #7a5c10; font-size: 13px; font-weight: 800; }
+.shop-lion-preview { display: grid; justify-items: center; gap: 4px; padding: 14px 10px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(135deg, #fffbe9, #f6efdc); text-align: center; }
+.shop-lion-emoji { font-size: 52px; line-height: 1; }
+.shop-lion-preview p { margin: 0; color: var(--text-muted); font-size: 12px; }
+.shop-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.shop-tab { padding: 7px 13px; border: 1px solid var(--border); border-radius: 99px; background: #fff; color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; transition: background .15s ease, color .15s ease; }
+.shop-tab:hover { background: #f2f7f1; }
+.shop-tab.active { border-color: var(--green-dark); background: var(--green-dark); color: #fff; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 9px; }
+.shop-card { display: grid; justify-items: center; gap: 6px; padding: 13px 9px; border: 1px solid var(--border); border-radius: 7px; background: #fff; text-align: center; }
+.shop-card-emoji { font-size: 34px; line-height: 1; }
+.shop-card strong { overflow-wrap: anywhere; font-size: 12px; }
+.shop-card-price { color: #7a5c10; font-size: 12px; font-weight: 800; }
+.shop-card-actions { width: 100%; }
+.shop-card-actions .btn { width: 100%; }
+.gift-picker-window { width: min(420px, 100%); }
+.gift-picker-list { display: grid; gap: 8px; }
+.gift-friend-option { width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer; transition: background .15s ease; }
+.gift-friend-option:hover { background: #f2f7f1; }
 .lang-pair-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .lang-pair-row:last-child { border-bottom: none; }
 .profile-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }

@@ -45,6 +45,7 @@ class User(Base):
     achievements = relationship("Achievement", back_populates="user", cascade="all, delete-orphan")
     game_scores = relationship("GameScore", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    inventory_items = relationship("UserInventoryItem", back_populates="user", cascade="all, delete-orphan")
 
 
 class LanguagePair(Base):
@@ -289,3 +290,88 @@ class DailyChallenge(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "challenge_date", "code", name="uq_user_daily_challenge"),
     )
+
+
+class UserInventoryItem(Base):
+    """Cosmetic and consumable items bought in the profile shop with coins."""
+
+    __tablename__ = "user_inventory_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    item_code = Column(String(50), nullable=False)  # sticker_*, shield_streak, gift_*, lion_*
+    quantity = Column(Integer, default=1, nullable=False)
+    is_equipped = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+
+    user = relationship("User", back_populates="inventory_items")
+
+    __table_args__ = (UniqueConstraint("user_id", "item_code", name="uq_user_inventory_item_code"),)
+
+
+class GameDuel(Base):
+    """A peer-vs-peer game challenge where both players wager coins.
+
+    The challenger's stake is escrowed on creation and the opponent's on
+    acceptance. The winner takes the whole pot; a draw refunds both players.
+    ``seed`` guarantees both players answer the exact same question set.
+    """
+
+    __tablename__ = "game_duels"
+
+    id = Column(Integer, primary_key=True, index=True)
+    challenger_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    opponent_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    game_type = Column(String(50), nullable=False)
+    topic_id = Column(String(50), nullable=False)
+    stake = Column(Integer, nullable=False, default=10)
+    source_language = Column(String(10), nullable=False)
+    target_language = Column(String(10), nullable=False)
+    seed = Column(Integer, nullable=False, default=0)
+    status = Column(String(20), nullable=False, default="pending")  # pending|active|finished|declined|cancelled|expired
+    challenger_score = Column(Integer, nullable=True)
+    opponent_score = Column(Integer, nullable=True)
+    winner_id = Column(Integer, nullable=True)  # None on a draw
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+
+    challenger = relationship("User", foreign_keys=[challenger_id])
+    opponent = relationship("User", foreign_keys=[opponent_id])
+
+    __table_args__ = (Index("ix_game_duels_players", "challenger_id", "opponent_id", "status"),)
+
+
+class WeeklyTournament(Base):
+    """One weekly tournament row (unique per ISO year+week)."""
+
+    __tablename__ = "weekly_tournaments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, nullable=False)
+    week = Column(Integer, nullable=False)
+    game_type = Column(String(50), nullable=False)
+    entry_fee = Column(Integer, nullable=False, default=50)
+    prize_pool = Column(Integer, nullable=False, default=0)
+    settled = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+
+    __table_args__ = (UniqueConstraint("year", "week", name="uq_tournament_year_week"),)
+
+
+class TournamentEntry(Base):
+    """A user's entry into a weekly tournament with their best score."""
+
+    __tablename__ = "tournament_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tournament_id = Column(Integer, ForeignKey("weekly_tournaments.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    best_score = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+    updated_at = Column(DateTime, default=utcnow_naive, nullable=False)
+
+    tournament = relationship("WeeklyTournament")
+    user = relationship("User")
+
+    __table_args__ = (UniqueConstraint("tournament_id", "user_id", name="uq_tournament_entry"),)

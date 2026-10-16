@@ -490,6 +490,59 @@ const OfflineGameCatalog = (() => {
 
   const CHOICE_OPTION_COUNT = 4;
 
+  // Cap on how many items a single game round contains.
+  const MAX_GAME_ITEMS = 10;
+
+  // Maps each game topic to the closest vocabulary topic so word-based games
+  // always pull dictionary words (лӯғат) even when the game topic itself has
+  // no dedicated word list in VocabularyCatalog.
+  const topicVocabularyMap = {
+    greetings: "greetings",
+    introduction_details: "pronouns",
+    family_and_friends: "family",
+    on_the_bus: "transport",
+    in_the_taxi: "transport",
+    at_work: "verbs",
+    shopping: "clothes",
+    at_the_restaurant: "fruits",
+    at_the_hotel: "places",
+    at_the_airport: "transport",
+    at_the_university: "school",
+    at_the_school: "school",
+    at_the_embassy: "adjectives",
+    on_the_phone: "verbs",
+    at_the_hospital: "bodyParts",
+    at_the_bank: "numbers",
+    at_the_pharmacy: "vegetables",
+    hobby_and_free_time: "adjectives",
+  };
+
+  // Builds the shared {word, translation} pool for a topic: half vocabulary
+  // dictionary words and half dialogue phrases from the topic itself.
+  function buildMixedEntries(topic, sourceLanguage, targetLanguage) {
+    const dialogueEntries = shuffle(
+      topic.phrases
+        .filter((phrase) => phrase[sourceLanguage] && phrase[targetLanguage])
+        .map((phrase) => ({
+          word: phrase[targetLanguage],
+          translation: phrase[sourceLanguage],
+        })),
+    );
+    const vocabularyEntries = shuffle(
+      VocabularyCatalog.get(topicVocabularyMap[topic.id] || "greetings")
+        .filter((entry) => entry[sourceLanguage] && entry[targetLanguage])
+        .map((entry) => ({
+          word: entry[targetLanguage],
+          translation: entry[sourceLanguage],
+        })),
+    );
+    const total = Math.min(MAX_GAME_ITEMS, dialogueEntries.length + vocabularyEntries.length);
+    const half = Math.ceil(total / 2);
+    const dialogueShare = Math.min(half, dialogueEntries.length);
+    const vocabularyShare = Math.min(total - dialogueShare, vocabularyEntries.length);
+    return [...dialogueEntries.slice(0, dialogueShare), ...vocabularyEntries.slice(0, vocabularyShare)];
+  }
+
   // Builds a small, shuffled multiple-choice set: the correct answer plus a
   // few random distractors (default 4 options total) instead of listing every
   // phrase as an option.
@@ -505,25 +558,27 @@ const OfflineGameCatalog = (() => {
     if (!languages.includes(sourceLanguage) || !languages.includes(targetLanguage)) return null;
     const topic = topics.find((item) => item.id === topicId);
     if (!topic) return null;
-    const translations = topic.phrases.map((phrase) => ({
-      sentence: phrase[sourceLanguage],
-      answer: phrase[targetLanguage],
+    // Every round mixes half dictionary words and half dialogue phrases.
+    const entries = buildMixedEntries(topic, sourceLanguage, targetLanguage);
+    const translations = entries.map((entry) => ({
+      sentence: entry.translation,
+      answer: entry.word,
     }));
-    const sourcePhrases = topic.phrases.map((option) => option[sourceLanguage]);
-    const targetPhrases = topic.phrases.map((option) => option[targetLanguage]);
+    const sourcePhrases = entries.map((entry) => entry.translation);
+    const targetPhrases = entries.map((entry) => entry.word);
     // Default direction: the prompt is in the language being learned and the
     // options are in the learner's own language (receptive recognition).
-    const choiceItems = topic.phrases.map((phrase) => ({
-      sentence: phrase[targetLanguage],
-      options: buildChoiceOptions(phrase[sourceLanguage], sourcePhrases),
-      correct_answer: phrase[sourceLanguage],
+    const choiceItems = entries.map((entry) => ({
+      sentence: entry.word,
+      options: buildChoiceOptions(entry.translation, sourcePhrases),
+      correct_answer: entry.translation,
     }));
     // Reverse direction: the prompt is in the learner's own language and the
     // options are in the language being learned (productive recall).
-    const reverseChoiceItems = topic.phrases.map((phrase) => ({
-      sentence: phrase[sourceLanguage],
-      options: buildChoiceOptions(phrase[targetLanguage], targetPhrases),
-      correct_answer: phrase[targetLanguage],
+    const reverseChoiceItems = entries.map((entry) => ({
+      sentence: entry.translation,
+      options: buildChoiceOptions(entry.word, targetPhrases),
+      correct_answer: entry.word,
     }));
 
     switch (gameType) {
@@ -531,13 +586,7 @@ const OfflineGameCatalog = (() => {
       case "multiple_choice":
       case "word_scramble":
       case "vocabulary_learning":
-      {
-        const pairs = VocabularyCatalog.get(topicId).map((word) => ({
-          word: word[targetLanguage],
-          translation: word[sourceLanguage],
-        }));
-        return { pairs };
-      }
+        return { pairs: entries };
       case "translation":
         return { items: translations };
       case "speed_challenge":
@@ -553,10 +602,10 @@ const OfflineGameCatalog = (() => {
       case "speaking":
       case "writing":
         return {
-          items: topic.phrases.map((phrase) => ({
-            prompt: phrase[sourceLanguage],
-            expected_answer: phrase[targetLanguage],
-            keywords: [phrase[targetLanguage]],
+          items: entries.map((entry) => ({
+            prompt: entry.translation,
+            expected_answer: entry.word,
+            keywords: [entry.word],
           })),
         };
       case "reading":
@@ -564,11 +613,11 @@ const OfflineGameCatalog = (() => {
         // the learner's own language (the answer must be a meaning, not a copy
         // of a phrase that is already visible in the passage).
         return {
-          items: topic.phrases.map((phrase) => ({
-            passage: phrase[targetLanguage],
+          items: entries.map((entry) => ({
+            passage: entry.word,
             question: readingQuestion[sourceLanguage],
-            options: buildChoiceOptions(phrase[sourceLanguage], sourcePhrases),
-            correct_answer: phrase[sourceLanguage],
+            options: buildChoiceOptions(entry.translation, sourcePhrases),
+            correct_answer: entry.translation,
           })),
         };
       default:
@@ -579,7 +628,12 @@ const OfflineGameCatalog = (() => {
   function getCount(gameType, topicId) {
     const topic = topics.find((item) => item.id === topicId);
     if (!topic) return 0;
-    return gameType === "vocabulary_learning" ? VocabularyCatalog.get(topicId).length : topic.phrases.length;
+    const vocabularyCount = VocabularyCatalog.get(topicVocabularyMap[topicId] || "greetings").length;
+    const total = Math.min(MAX_GAME_ITEMS, topic.phrases.length + vocabularyCount);
+    const half = Math.ceil(total / 2);
+    const dialogueShare = Math.min(half, topic.phrases.length);
+    const vocabularyShare = Math.min(total - dialogueShare, vocabularyCount);
+    return dialogueShare + vocabularyShare;
   }
 
   return { get, getCount, languages, topics };

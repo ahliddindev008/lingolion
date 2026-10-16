@@ -1,4 +1,3 @@
-
 {
   "app_name": "Lingolion",
   "tagline": "Apprenez une langue avec l'IA",
@@ -513,7 +512,38 @@
     "learning_course": "Cours suivi",
     "no_courses": "Aucun cours actif pour le moment.",
     "progress": "Progression",
-    "account_updates": "Mises à jour"
+    "account_updates": "Mises à jour",
+    "shop_intro": "Pièces gagnées",
+    "shop_title": "Boutique",
+    "shop_lion_hint": "Achetez des vêtements pour le lion",
+    "shop_tab_sticker": "Stickers",
+    "shop_tab_shield": "Boucliers",
+    "shop_tab_gift": "Cadeaux",
+    "shop_tab_lion_outfit": "Vêtements du lion",
+    "shop_buy": "Acheter",
+    "shop_equip": "Porter",
+    "shop_unequip": "Retirer",
+    "shop_send": "Envoyer",
+    "shop_bought": "Achat effectué ✅",
+    "shop_equipped": "Tenue changée ✅",
+    "shop_not_enough": "Pas assez de pièces",
+    "shop_no_friends": "Aucun ami trouvé pour l'instant",
+    "shop_pick_friend": "Choisir un ami",
+    "shop_gift_sent": "Cadeau envoyé à votre ami 🎁",
+    "shop_items": {
+      "sticker_wave": "Sticker : Bonjour",
+      "sticker_fire": "Sticker : Feu",
+      "sticker_heart": "Sticker : Cœur",
+      "sticker_party": "Sticker : Fête",
+      "shield_streak": "Bouclier de série",
+      "gift_flower": "Fleur",
+      "gift_cake": "Gâteau",
+      "gift_lion_plush": "Peluche lion",
+      "lion_cap": "Casquette",
+      "lion_scarf": "Écharpe",
+      "lion_sunglasses": "Lunettes de soleil",
+      "lion_crown": "Couronne"
+    }
   },
   "common": {
     "loading": "Chargement...",

@@ -1,0 +1,13 @@
+.venv/
+venv/
+.idea/
+__pycache__/
+*.pyc
+.env
+*.db
+*.log
+backend/venv/
+backend/.chat_uploads/
+.vscode/
+node_modules/
+.DS_Store
